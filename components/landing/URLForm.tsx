@@ -46,8 +46,8 @@ export default function URLForm() {
     // ── YouTube: 5-step pipeline ───────────────────────────────────────────
     if (isYouTubeUrl(trimmed)) {
       // Landing page has no platform selector — default to tiktok
-      const videoId = await runYouTube(trimmed, "tiktok");
-      if (videoId) router.push(`/dashboard/processing?videoId=${videoId}`);
+      const result = await runYouTube(trimmed, "tiktok");
+      if (result.videoId) router.push(`/dashboard/processing?videoId=${result.videoId}`);
       // errors surface via ytState.error panel below
       return;
     }

@@ -175,4 +175,147 @@ export function ensureHexSignature(signature: string): string {
   return signature;
 }
 
+/**
+ * Check whether a Stellar account has a USDC trustline on the current network.
+ * Queries Horizon directly from the browser — uses testnet or mainnet based on
+ * NEXT_PUBLIC_STELLAR_NETWORK.
+ *
+ * Returns true if the trustline exists, false if not.
+ * Throws only on genuine network errors (account not found returns false).
+ */
+export async function hasUsdcTrustline(stellarAddress: string): Promise<boolean> {
+  const horizonUrl =
+    STELLAR_NETWORK === Networks.PUBLIC
+      ? "https://horizon.stellar.org"
+      : "https://horizon-testnet.stellar.org";
+
+  const usdcIssuer =
+    STELLAR_NETWORK === Networks.PUBLIC
+      ? "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
+      : "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
+
+  try {
+    const res = await fetch(`${horizonUrl}/accounts/${stellarAddress}`);
+    console.log(`[hasUsdcTrustline] checking ${stellarAddress} on ${horizonUrl} → HTTP ${res.status}`);
+
+    if (res.status === 404) {
+      console.warn("[hasUsdcTrustline] account not found — not activated yet");
+      return false;
+    }
+    if (!res.ok) {
+      console.warn("[hasUsdcTrustline] Horizon error", res.status);
+      return false;
+    }
+
+    const data = await res.json();
+    const balances: { asset_type: string; asset_code?: string; asset_issuer?: string }[] =
+      data?.balances ?? [];
+
+    console.log("[hasUsdcTrustline] balances:", JSON.stringify(balances));
+
+    const found = balances.some(
+      (b) => b.asset_code === "USDC" && b.asset_issuer === usdcIssuer
+    );
+    console.log(`[hasUsdcTrustline] USDC trustline found: ${found}`);
+    return found;
+  } catch (err) {
+    // Log but don't block — let Horizon surface the real error on submit
+    console.warn("[hasUsdcTrustline] fetch failed:", err);
+    return true;
+  }
+}
+
+
+
+/**
+ * Submit a signed Stellar XDR transaction to the Horizon network.
+ *
+ * The backend's /stellar/agent/hire and /stellar/tips/submit endpoints
+ * verify the payment by looking it up on Stellar Horizon — so the tx
+ * must be submitted here first, before calling those endpoints.
+ *
+ * Returns the transaction hash on success.
+ * Throws with a human-readable message on failure.
+ */
+export async function submitToStellar(signedXdr: string): Promise<string> {
+  const horizonUrl =
+    STELLAR_NETWORK === Networks.PUBLIC
+      ? "https://horizon.stellar.org"
+      : "https://horizon-testnet.stellar.org";
+
+  const body = new URLSearchParams({ tx: signedXdr });
+
+  const res = await fetch(`${horizonUrl}/transactions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: body.toString(),
+  });
+
+  const data = await res.json().catch(() => ({}));
+
+  if (!res.ok) {
+    const codes   = data?.extras?.result_codes ?? {};
+    const txCode  = codes?.transaction  ?? "";
+    const opCodes: string[] = codes?.operations ?? [];
+
+    // Always log the raw codes so they're visible in the browser console
+    console.error("[submitToStellar] failed — result_codes:", JSON.stringify(codes));
+
+    // ── Transaction-level codes ──────────────────────────────────────────────
+    if (txCode === "tx_bad_auth") {
+      throw new Error(
+        "Transaction signature is invalid. Make sure Freighter is set to Testnet and try again."
+      );
+    }
+    if (txCode === "tx_bad_seq") {
+      throw new Error(
+        "Sequence number mismatch — your account state changed. Please retry."
+      );
+    }
+    if (txCode === "tx_no_account") {
+      throw new Error(
+        "Your Stellar account does not exist on the testnet. " +
+        "Fund it first at https://friendbot.stellar.org"
+      );
+    }
+    if (txCode === "tx_insufficient_fee") {
+      throw new Error("Transaction fee too low — please retry.");
+    }
+
+    // ── Operation-level codes ────────────────────────────────────────────────
+    if (opCodes.includes("op_underfunded")) {
+      throw new Error(
+        "Insufficient XLM or USDC balance. " +
+        "Fund your testnet wallet at https://friendbot.stellar.org and ensure you have a USDC trustline."
+      );
+    }
+    if (opCodes.includes("op_no_trust")) {
+      throw new Error(
+        "The platform's receiving wallet has no USDC trustline on testnet. " +
+        "This is a backend configuration issue — the platform wallet needs to add the USDC trustline. " +
+        "Contact your backend team to fund the platform wallet's USDC trustline on testnet."
+      );
+    }
+    if (opCodes.includes("op_line_full")) {
+      throw new Error("Destination account's USDC trustline is full.");
+    }
+    if (opCodes.includes("op_no_destination")) {
+      throw new Error("Destination account does not exist on the Stellar testnet.");
+    }
+    if (opCodes.includes("op_not_authorized")) {
+      throw new Error("This asset requires authorization — contact the issuer.");
+    }
+
+    // ── Fallback: show the raw codes so the user/dev can act on them ─────────
+    const txPart  = txCode  ? `tx: ${txCode}`                   : "";
+    const opPart  = opCodes.length ? `ops: ${opCodes.join(", ")}` : "";
+    const summary = [txPart, opPart].filter(Boolean).join(" | ") || "unknown error";
+    throw new Error(`Stellar transaction failed (${summary})`);
+  }
+
+  const hash: string = data?.hash;
+  if (!hash) throw new Error("Stellar returned no transaction hash.");
+  return hash;
+}
+
 export { StellarWalletsKit, Networks };

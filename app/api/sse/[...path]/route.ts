@@ -31,10 +31,11 @@ export async function GET(req: NextRequest) {
 
   console.log(`[sse-proxy] → GET ${targetUrl}`);
 
-  // Forward auth cookies
+  // Forward auth cookies and Authorization header
   const cookieStore = await cookies();
   const allCookies = cookieStore.getAll();
   const cookieHeader = allCookies.map((c) => `${c.name}=${c.value}`).join("; ");
+  const authHeader = req.headers.get("authorization");
 
   let backendRes: Response;
   try {
@@ -43,7 +44,8 @@ export async function GET(req: NextRequest) {
       headers: {
         Accept: "text/event-stream",
         "Cache-Control": "no-cache",
-        cookie: cookieHeader,
+        ...(cookieHeader ? { cookie: cookieHeader } : {}),
+        ...(authHeader ? { authorization: authHeader } : {}),
       },
       // Critical: tell fetch not to buffer the body
       cache: "no-store",

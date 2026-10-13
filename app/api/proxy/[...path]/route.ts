@@ -57,16 +57,22 @@ async function handler(req: NextRequest) {
       duplex: 'half',
     } as RequestInit);
   } catch (err: any) {
-    // ECONNRESET / ECONNREFUSED = Render backend is waking up from sleep
-    // (free tier spins down after 15 min of inactivity, takes ~30s to wake)
-    const code = err?.cause?.code ?? '';
+    // ECONNRESET / ECONNREFUSED / ENOTFOUND = Render backend is waking up from sleep
+    // (free tier spins down after 15 min of inactivity, takes ~30s to wake up;
+    //  ENOTFOUND happens during cold-start before DNS propagates back to the node)
+    // UND_ERR_CONNECT_TIMEOUT = undici connection timeout during wake-up
+    const code = err?.cause?.code ?? err?.code ?? '';
+    const msg  = err?.message ?? '';
     const isWakeUp =
-      code === 'ECONNRESET' ||
-      code === 'ECONNREFUSED' ||
-      code === 'ETIMEDOUT';
+      code === 'ECONNRESET'           ||
+      code === 'ECONNREFUSED'         ||
+      code === 'ETIMEDOUT'            ||
+      code === 'ENOTFOUND'            ||
+      code === 'UND_ERR_CONNECT_TIMEOUT' ||
+      msg.includes('UND_ERR_CONNECT_TIMEOUT');
 
     console.error(
-      `[proxy] ${req.method} ${path} → ${isWakeUp ? 'backend waking up' : 'connection error'}: ${code || err?.message}`
+      `[proxy] ${req.method} ${path} → ${isWakeUp ? 'backend waking up' : 'connection error'}: ${code || msg}`
     );
 
     return new NextResponse(

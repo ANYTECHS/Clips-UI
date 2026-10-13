@@ -21,18 +21,18 @@ function ProjectsInner() {
     queryKey: ["projectsData", videoId],
     queryFn: () => getProjectsData(videoId),
     // If cache is already seeded, treat it as fresh — no refetch on mount
-    staleTime: hasCachedData ? 30_000 : 2_000,
-    // Poll only when we have a videoId but no clips yet
+    staleTime: hasCachedData ? 30_000 : 0,
+    // Poll fast (every 1 second) while clips are still being retrieved
     refetchInterval: (query) => {
       if (!videoId) return false;
       const hasClips = Array.isArray(query.state.data) && query.state.data.length > 0;
-      return hasClips ? false : 3_000;
+      return hasClips ? false : 1_000;
     },
   });
 
   const stillGenerating = !!videoId && !isLoading && clips.length === 0;
 
-  // Hard loading — only when there's no cache at all
+  // Hard loading — only when there's no cache at all and query hasn't finished initial run
   if (isLoading && !hasCachedData) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
@@ -44,26 +44,26 @@ function ProjectsInner() {
     );
   }
 
-  // Clips haven't arrived yet and we're actively polling
+  // Clips haven't arrived yet and we're actively polling with short transition
   if (stillGenerating) {
     return (
       <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
-        <div className="flex flex-col items-center gap-8 text-center">
-          <WorldCupBall size={90} />
+        <div className="flex flex-col items-center gap-6 text-center max-w-sm px-4">
+          <WorldCupBall size={80} />
           <div className="space-y-2">
             <p className="text-white text-[20px] font-extrabold tracking-tight">
               AI is finishing up your clips…
             </p>
-            <p className="text-[#5A6F65] text-[14px] font-medium max-w-xs mx-auto leading-relaxed">
-              {isFetching ? "Checking now…" : "Checking every 3 seconds — they'll appear automatically."}
+            <p className="text-[#5A6F65] text-[13px] font-medium leading-relaxed">
+              Syncing your clips now — they will appear in just a moment.
             </p>
           </div>
           <div className="flex items-center gap-2">
             {[0, 1, 2].map((i) => (
               <div
                 key={i}
-                className="w-2 h-2 rounded-full bg-brand"
-                style={{ animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite` }}
+                className="w-2.5 h-2.5 rounded-full bg-brand"
+                style={{ animation: `pulse 1s ease-in-out ${i * 0.2}s infinite` }}
               />
             ))}
           </div>

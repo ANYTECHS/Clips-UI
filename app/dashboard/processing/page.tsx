@@ -29,9 +29,9 @@ import { Sparkles, Clock, RefreshCw, Zap, CheckCircle2, AlertCircle } from "luci
 //  - The store entry is cleared only on success or on an unrecoverable error,
 //    so closing the tab mid-job and reopening it still reconnects.
 
-const SSE_SILENCE_TIMEOUT = 10_000;  // switch to poll if no SSE event in 10 s
+const SSE_SILENCE_TIMEOUT = 45_000;  // 45 s watchdog before starting backup polling (gives AI backend time to start)
 const POLL_INTERVAL       = 4_000;   // poll every 4 s
-const MAX_WAIT_MS         = 15 * 60 * 1000; // 15 min hard cap (up from 10 — long videos need more time)
+const MAX_WAIT_MS         = 15 * 60 * 1000; // 15 min hard cap
 
 type Status = "analyzing" | "processing" | "done" | "completed" | "failed" | "error";
 
@@ -105,13 +105,27 @@ function ProcessingContent() {
 
       setIsDone(true);
       setProgress(100);
-      setStatusMsg("All clips generated! Loading your clips…");
+      setStatusMsg("All clips generated! Preparing your clips…");
 
-      try {
-        const clips = await getProjectsData(vid);
+      // Small delay in fetching clips when AI finishes:
+      // Poll quickly (every 600ms, up to 6s) until clips are returned,
+      // so when the user lands on the project page, all clips are ready!
+      let clips: any[] = [];
+      const startTime = Date.now();
+      while (Date.now() - startTime < 6000) {
+        try {
+          clips = await getProjectsData(vid);
+          if (Array.isArray(clips) && clips.length > 0) {
+            break;
+          }
+        } catch { /* retry */ }
+        await new Promise((r) => setTimeout(r, 600));
+      }
+
+      if (clips.length > 0) {
         queryClient.setQueryData(["projectsData", vid], clips);
-        queryClient.invalidateQueries({ queryKey: ["sidebarClipCount"] });
-      } catch { /* non-fatal */ }
+      }
+      queryClient.invalidateQueries({ queryKey: ["sidebarClipCount"] });
 
       router.push(`/projects?videoId=${vid}`);
     };
@@ -132,6 +146,8 @@ function ProcessingContent() {
       usingPoll.current = true;
       setMode("polling");
 
+      const DONE_STATUSES = ["done", "completed", "complete", "finished", "success", "succeeded", "ready"];
+
       const poll = async () => {
         if (navigated.current) return;
         if (Date.now() - startedAt.current > MAX_WAIT_MS) {
@@ -140,40 +156,73 @@ function ProcessingContent() {
         }
         try {
           const res   = await apiClient.get(`/videos/${videoId}`);
-          const video = res.data;
-          const status: string = (video.status ?? "processing").toLowerCase();
+          const raw   = res.data;
+          const video = raw?.data ?? raw?.video ?? raw ?? {};
+          const status: string = (video.status ?? raw?.status ?? "processing").toString().toLowerCase().trim();
+
+          console.log("[poll] video status:", status, video);
 
           if (status === "failed" || status === "error") {
-            failWith(video.errorMessage || "Generation failed. Please try again.");
+            failWith(video.errorMessage || raw?.errorMessage || "Generation failed. Please try again.");
             return;
           }
 
-          // Animate progress based on elapsed time — but never go below what
-          // SSE already reported. This prevents the bar jumping backwards when
-          // we switch from SSE to polling mid-job.
-          const elapsed = (Date.now() - startedAt.current) / 1000;
-          if (status === "analyzing") {
-            setStatusMsg("Analyzing video retention patterns…");
-            const estimate = Math.min(25, Math.round(elapsed * 0.6));
-            if (estimate > lastSseProgress.current) setProgress(estimate);
-          } else if (status === "processing") {
-            setStatusMsg("AI is generating viral clips…");
-            const estimate = Math.min(95, 25 + Math.round(elapsed * 0.4));
-            if (estimate > lastSseProgress.current) setProgress(estimate);
+          // Check if the backend explicitly reports progress
+          const rawBackendProgress = typeof video.progress === "number"
+            ? video.progress
+            : typeof raw?.progress === "number"
+            ? raw.progress
+            : null;
+
+          if (rawBackendProgress !== null) {
+            const currentP = Math.max(rawBackendProgress, lastSseProgress.current);
+            setProgress(currentP);
+            lastSseProgress.current = currentP;
+            if (currentP >= 100) {
+              await finish(videoId);
+              return;
+            }
+          } else {
+            // Animate progress based on elapsed time — but never go below what
+            // SSE already reported.
+            const elapsed = (Date.now() - startedAt.current) / 1000;
+            if (status === "analyzing") {
+              setStatusMsg("Analyzing video retention patterns…");
+              const estimate = Math.min(25, Math.round(elapsed * 0.6));
+              if (estimate > lastSseProgress.current) setProgress(estimate);
+            } else if (status === "processing") {
+              setStatusMsg("AI is generating viral clips…");
+              const estimate = Math.min(95, 25 + Math.round(elapsed * 0.4));
+              if (estimate > lastSseProgress.current) setProgress(estimate);
+            }
           }
 
-          const clips = video.clips ?? [];
-          const count = typeof video.clipsCount === "number"
+          let clips = video.clips ?? raw?.clips ?? [];
+          let count = typeof video.clipsCount === "number"
             ? video.clipsCount
-            : clips.length;
+            : typeof raw?.clipsCount === "number"
+            ? raw.clipsCount
+            : typeof video.totalClips === "number"
+            ? video.totalClips
+            : (Array.isArray(clips) ? clips.length : 0);
+
+          // If no clips found directly on the video object and status isn't explicitly completed,
+          // probe /videos/:id/clips in case clips are stored on the dedicated endpoint
+          if (count === 0 && !DONE_STATUSES.includes(status)) {
+            try {
+              const clipsRes = await apiClient.get(`/videos/${videoId}/clips?page=1&limit=1`);
+              const clipsData = clipsRes.data?.data ?? (Array.isArray(clipsRes.data) ? clipsRes.data : []);
+              const totalCount = clipsRes.data?.total ?? clipsData.length;
+              if (totalCount > 0) {
+                count = totalCount;
+                clips = clipsData;
+              }
+            } catch { /* non-fatal check */ }
+          }
 
           if (count > 0) setClipsFound(count);
 
-          // Accept any completion-like status string the backend may use —
-          // don't require clipsCount > 0 because clips may still be committing
-          // to the database at the exact moment we poll.
-          const DONE_STATUSES = ["done", "completed", "complete", "finished", "success"];
-          const isDoneStatus  = DONE_STATUSES.includes(status?.toLowerCase?.() ?? "");
+          const isDoneStatus  = DONE_STATUSES.includes(status);
           const hasClips      = count > 0;
 
           if (isDoneStatus || hasClips) {
@@ -197,12 +246,12 @@ function ProcessingContent() {
       const es = new EventSource(url);
       esRef.current = es;
 
-      // Silence watchdog — if no event arrives in SSE_SILENCE_TIMEOUT, fall back
+      // Silence watchdog — if no event arrives in SSE_SILENCE_TIMEOUT, start fallback polling
       const resetSilence = () => {
         if (silenceRef.current) clearTimeout(silenceRef.current);
         silenceRef.current = setTimeout(() => {
-          console.warn("[sse] silence timeout — switching to polling");
-          es.close();
+          console.warn("[sse] silence timeout — starting polling as backup");
+          // Don't close ES if it's still alive; start polling as backup
           startPolling();
         }, SSE_SILENCE_TIMEOUT);
       };
@@ -214,15 +263,14 @@ function ProcessingContent() {
         resetSilence();
       };
 
-      es.onmessage = (event) => {
-        resetSilence(); // got a heartbeat / data — reset watchdog
+      const handleEventData = (rawData: any) => {
+        resetSilence(); // got heartbeat or data — reset watchdog
         try {
-          const data = JSON.parse(event.data);
+          const data = typeof rawData === "string" ? JSON.parse(rawData) : rawData;
           console.log("[sse] event:", data);
 
           if (typeof data.progress === "number") {
             setProgress(data.progress);
-            // Track highest SSE progress so polling never goes backwards
             if (data.progress > lastSseProgress.current) {
               lastSseProgress.current = data.progress;
             }
@@ -233,7 +281,7 @@ function ProcessingContent() {
             setClipsFound(data.clips.length);
           }
 
-          const status: string = (data.status ?? "").toLowerCase();
+          const status: string = (data.status ?? "").toString().toLowerCase().trim();
 
           if (status === "failed" || status === "error") {
             failWith(
@@ -247,7 +295,7 @@ function ProcessingContent() {
           if (data.message) setStatusMsg(data.message);
 
           // Accept any completion-like status string, progress=100, or clips attached
-          const DONE_STATUSES = ["done", "completed", "complete", "finished", "success"];
+          const DONE_STATUSES = ["done", "completed", "complete", "finished", "success", "succeeded", "ready"];
           const hasCompletionClips =
             (typeof data.clipsFound === "number" && data.clipsFound > 0) ||
             (Array.isArray(data.clips) && data.clips.length > 0);
@@ -260,11 +308,15 @@ function ProcessingContent() {
         }
       };
 
+      es.onmessage = (event) => handleEventData(event.data);
+
+      // Listen to named SSE events
+      const EVENT_NAMES = ["progress", "status", "clip", "clips", "done", "complete", "completed", "message"];
+      EVENT_NAMES.forEach((evtName) => {
+        es.addEventListener(evtName, (event: any) => handleEventData(event.data));
+      });
+
       es.onerror = () => {
-        // onerror fires both on connection failures AND when the server closes
-        // the stream normally (readyState becomes CLOSED). In both cases we
-        // switch to polling so we can detect completion even if the backend
-        // never sent an explicit status:"done" event before closing the stream.
         console.warn("[sse] stream closed/error — switching to polling");
         es.close();
         esRef.current = null;

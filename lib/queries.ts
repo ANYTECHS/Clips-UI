@@ -74,44 +74,51 @@ export const getVideos = async (page = 1, limit = 10) => {
 
 export const getProjectsData = async (videoId?: string, page = 1, limit = 20) => {
   try {
-    let endpoint: string;
-    
-    // First, try GET /videos/:id to see if it returns clips directly
+    const extractClips = (resData: any): any[] => {
+      if (!resData) return [];
+      if (Array.isArray(resData)) return resData;
+      if (Array.isArray(resData.data)) return resData.data;
+      if (Array.isArray(resData.clips)) return resData.clips;
+      if (Array.isArray(resData.data?.clips)) return resData.data.clips;
+      if (Array.isArray(resData.video?.clips)) return resData.video.clips;
+      return [];
+    };
+
+    let rawClips: any[] = [];
+
+    // If videoId is provided, check the video clips endpoint first
     if (videoId) {
       try {
-        const videoRes = await apiClient.get(`/videos/${videoId}`);
-        console.log("[getProjectsData] GET /videos/:id response:", videoRes.data);
-        
-        // If video has clips directly, use those
-        if (videoRes.data?.clips && Array.isArray(videoRes.data.clips) && videoRes.data.clips.length > 0) {
-          const clips = videoRes.data.clips;
-          return clips.map((clip: any) => ({
-            id: String(clip.id),
-            title: clip.title || `Clip #${clip.id}`,
-            thumbnail: clip.thumbnail || null,
-            score: clip.viralScore ?? clip.score ?? 0,
-            scoreKey: (clip.viralScore ?? clip.score ?? 0) >= 80 ? "high" : (clip.viralScore ?? clip.score ?? 0) >= 50 ? "medium" : "low",
-            duration: clip.duration ? formatDuration(clip.duration) : "00:00",
-            style: clip.platform || clip.style || "General",
-            clipUrl: clip.clipUrl || null,
-          }));
-        }
-      } catch (err) {
-        console.log("[getProjectsData] GET /videos/:id failed, trying next approach:", err);
+        const clipsRes = await apiClient.get(`/videos/${videoId}/clips?page=${page}&limit=${limit}`);
+        rawClips = extractClips(clipsRes.data);
+      } catch {
+        // Fallback to GET /videos/:id
+        try {
+          const videoRes = await apiClient.get(`/videos/${videoId}`);
+          rawClips = extractClips(videoRes.data);
+        } catch { /* continue to generic /clips */ }
       }
     }
-    
-    // If that fails, try the original endpoints
-    endpoint = videoId 
-      ? `/videos/${videoId}/clips?page=${page}&limit=${limit}` 
-      : `/clips?page=${page}&limit=${limit}`;
-      
-    const response = await apiClient.get(endpoint);
-    console.log("[getProjectsData] API response:", response.data);
-    // Backend returns { data: [...], total, page, limit } or plain array
-    const clips = response.data.data || (Array.isArray(response.data) ? response.data : []);
 
-    return clips.map((clip: any) => ({
+    // If still no clips (or videoId wasn't passed), query /clips
+    if (rawClips.length === 0) {
+      try {
+        const endpoint = videoId ? `/clips?page=1&limit=50` : `/clips?page=${page}&limit=${limit}`;
+        const response = await apiClient.get(endpoint);
+        const allClips = extractClips(response.data);
+
+        if (videoId && allClips.length > 0) {
+          const matched = allClips.filter((c: any) => String(c.videoId) === String(videoId));
+          rawClips = matched.length > 0 ? matched : allClips;
+        } else {
+          rawClips = allClips;
+        }
+      } catch (err) {
+        console.warn("[getProjectsData] /clips fetch fallback error:", err);
+      }
+    }
+
+    return rawClips.map((clip: any) => ({
       id: String(clip.id),
       title: clip.title || `Clip #${clip.id}`,
       thumbnail: clip.thumbnail || null,
@@ -123,7 +130,7 @@ export const getProjectsData = async (videoId?: string, page = 1, limit = 20) =>
     }));
   } catch (error) {
     console.error("Failed to fetch projects data:", error);
-    throw error;
+    return [];
   }
 };
 
@@ -329,4 +336,125 @@ export const deleteVideo = async (videoId: string) => {
 export const updateVideo = async (videoId: string, data: any) => {
   const response = await apiClient.patch(`/videos/${videoId}`, data);
   return response.data;
+};
+
+// ─── Agent Marketplace ─────────────────────────────────────────────────────────
+
+export interface Agent {
+  id: number;
+  name: string;
+  description: string;
+  pricePerJobBNB: string;
+  walletAddress: string;
+  contractAddress: string;
+}
+
+export interface AgentJob {
+  id: number;
+  contractJobId: string;
+  videoUrl: string;
+  style: string;
+  status: "PENDING" | "PROCESSING" | "COMPLETED" | "FAILED";
+  clientAddress: string;
+  txHash: string;
+  resultClipIds: number[];
+  agentId: number;
+  createdAt: string;
+}
+
+export const getAgents = async (): Promise<Agent[]> => {
+  const res = await apiClient.get("/agents");
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+};
+
+export const getAgentById = async (id: number): Promise<Agent> => {
+  const res = await apiClient.get(`/agents/${id}`);
+  return res.data;
+};
+
+export const getAgentJobs = async (): Promise<AgentJob[]> => {
+  const res = await apiClient.get("/agent/jobs");
+  return Array.isArray(res.data) ? res.data : res.data?.data ?? [];
+};
+
+export const getAgentJob = async (jobId: number): Promise<AgentJob> => {
+  const res = await apiClient.get(`/agent/jobs/${jobId}`);
+  return res.data;
+};
+
+export const createAgentJob = async (data: {
+  videoUrl: string;
+  clientAddress: string;
+  style?: string;
+  contractJobId?: string;
+  txHash?: string;
+}): Promise<AgentJob> => {
+  const res = await apiClient.post("/agent/jobs", data);
+  return res.data;
+};
+
+// ─── Stellar USDC Agent Payments ───────────────────────────────────────────────
+
+export interface StellarSubscription {
+  id: number;
+  plan: "STARTER" | "CREATOR" | "PRO";
+  status: "ACTIVE" | "CANCELLED" | "EXPIRED";
+  startsAt: string;
+  expiresAt: string;
+  stellarAddress: string;
+}
+
+export const buildAgentPaymentXdr = async (data: {
+  senderAddress: string;
+  videoUrl: string;
+  style?: string;
+}): Promise<{ xdr: string; memo: string; amount: string }> => {
+  const res = await apiClient.post("/stellar/agent/build-payment", data);
+  return res.data;
+};
+
+export const hireAgent = async (data: {
+  senderAddress: string;
+  videoUrl: string;
+  style?: string;
+  signedXdr?: string;
+}): Promise<AgentJob> => {
+  const res = await apiClient.post("/stellar/agent/hire", data);
+  return res.data;
+};
+
+export const getStellarAgentJob = async (jobId: number): Promise<AgentJob> => {
+  const res = await apiClient.get(`/stellar/agent/jobs/${jobId}`);
+  return res.data;
+};
+
+export const getMySubscription = async (): Promise<StellarSubscription | null> => {
+  try {
+    const res = await apiClient.get("/stellar/subscriptions/my");
+    return res.data;
+  } catch (err: any) {
+    if (err?.response?.status === 404) return null;
+    throw err;
+  }
+};
+
+export const buildSubscriptionPaymentXdr = async (data: {
+  senderAddress: string;
+  plan: "STARTER" | "CREATOR" | "PRO";
+}): Promise<{ xdr: string; amount: string; plan: string }> => {
+  const res = await apiClient.post("/stellar/subscriptions/build-payment", data);
+  return res.data;
+};
+
+export const activateSubscription = async (data: {
+  senderAddress: string;
+  plan: "STARTER" | "CREATOR" | "PRO";
+  signedXdr: string;
+}): Promise<StellarSubscription> => {
+  const res = await apiClient.post("/stellar/subscriptions/activate", data);
+  return res.data;
+};
+
+export const cancelSubscription = async (): Promise<void> => {
+  await apiClient.post("/stellar/subscriptions/cancel");
 };

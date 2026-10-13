@@ -76,8 +76,9 @@ export default function CreateClipsForm() {
 
     // YouTube — 5-step pipeline via useYouTubeImport
     if (isYouTubeUrl(trimmed)) {
-      const videoId = await runYouTube(trimmed, platformToApiValue(activePlatform));
-      if (videoId) router.push(`/dashboard/processing?videoId=${videoId}`);
+      const result = await runYouTube(trimmed, platformToApiValue(activePlatform));
+      if (result.videoId) router.push(`/dashboard/processing?videoId=${result.videoId}`);
+      // errors surface via ytState.error panel below
       return;
     }
 

@@ -12,6 +12,7 @@ import {
   X,
   LogOut,
   Sparkles,
+  Bot,
 } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import Logo from "@/components/shared/Logo";
@@ -34,11 +35,12 @@ async function fetchClipCount(): Promise<number> {
 }
 
 const staticMenuItems = [
-  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
-  { id: "ai-projects", label: "AI Projects", icon: Sparkles, href: "/ai-projects" },
+  { id: "dashboard",         label: "Dashboard",        icon: LayoutDashboard, href: "/dashboard" },
+  { id: "ai-projects",       label: "AI Projects",      icon: Sparkles,        href: "/ai-projects" },
   // "projects" is injected conditionally below when the user has clips
-  { id: "platforms", label: "Platforms", icon: Share2, href: "/platforms" },
-  { id: "settings", label: "Settings", icon: Settings, href: "/settings" },
+  { id: "agent-marketplace", label: "Agent Marketplace",icon: Bot,             href: "/agent-marketplace" },
+  { id: "platforms",         label: "Platforms",        icon: Share2,          href: "/platforms" },
+  { id: "settings",          label: "Settings",         icon: Settings,        href: "/settings" },
 ];
 
 const projectsItem = { id: "projects", label: "Projects", icon: Video, href: "/projects" };
@@ -68,8 +70,9 @@ export default function DashboardSidebar({ isOpen, onClose }: SidebarProps) {
         staticMenuItems[0], // Dashboard
         staticMenuItems[1], // AI Projects
         projectsItem,       // Projects  ← only shown when clips exist
-        staticMenuItems[2], // Platforms
-        staticMenuItems[3], // Settings
+        staticMenuItems[2], // Agent Marketplace
+        staticMenuItems[3], // Platforms
+        staticMenuItems[4], // Settings
       ]
     : staticMenuItems;
 

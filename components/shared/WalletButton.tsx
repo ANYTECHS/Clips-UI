@@ -123,10 +123,20 @@ export default function WalletButton({ className, compact = false, onConnect }: 
 
       await openProfile(); // opens kit modal with disconnect option
 
-      // Refresh user to clear stellarAddress
-      const apiClient = (await import("@/lib/apiClient")).default;
-      const { data: updatedUser } = await apiClient.get("/users/me");
-      setUser(updatedUser);
+      // Refresh user to clear stellarAddress — only if we still have a session.
+      // After openProfile() the user may have ended their session, so guard
+      // against a 401 here rather than triggering the refresh interceptor loop.
+      try {
+        const apiClient = (await import("@/lib/apiClient")).default;
+        const { data: updatedUser } = await apiClient.get("/users/me");
+        setUser(updatedUser);
+      } catch (meErr: any) {
+        // 401 means the session ended — clear the user from state and move on.
+        if (meErr?.response?.status === 401) {
+          setUser(null);
+        }
+        // Any other error is non-critical; wallet is already disconnected locally.
+      }
     } catch (err) {
       console.error("Failed to disconnect wallet:", err);
     }

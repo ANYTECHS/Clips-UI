@@ -37,12 +37,15 @@ if (typeof window !== 'undefined') {
       // If error is 401 and we haven't retried yet.
       // Skip refresh for wallet auth endpoints — a 401 there means
       // "no account found" or "bad signature", not an expired token.
+      // Also skip for /users/me used as a session-existence check.
       const isWalletAuth = originalRequest.url?.includes('/auths/wallet/');
+      const isSessionCheck = originalRequest.url === '/users/me' && originalRequest._sessionCheck;
       if (
         error.response?.status === 401 &&
         !originalRequest._retry &&
         originalRequest.url !== '/auths/refresh' &&
-        !isWalletAuth
+        !isWalletAuth &&
+        !isSessionCheck
       ) {
         originalRequest._retry = true;
         try {
@@ -50,7 +53,10 @@ if (typeof window !== 'undefined') {
           await apiClient.post('/auths/refresh');
           return apiClient(originalRequest);
         } catch (refreshError) {
-          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          const PUBLIC_PATHS = ['/', '/login', '/signup', '/clips'];
+          const currentPath = window.location.pathname;
+          const isPublic = PUBLIC_PATHS.some(p => currentPath === p || currentPath.startsWith(p + '/'));
+          if (typeof window !== 'undefined' && !isPublic) {
             window.location.href = '/login';
           }
           return Promise.reject(refreshError);
