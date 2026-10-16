@@ -6,7 +6,7 @@ import axios from 'axios';
 const getApiBaseUrl = () => {
   if (typeof window === 'undefined') {
     // Server side: call backend directly
-    return process.env.API_URL;
+    return process.env.API_URL || 'https://clipcash-api.onrender.com';
   }
   // Client side: always use the proxy route to avoid CORS errors
   return '/api/proxy';
@@ -39,13 +39,15 @@ if (typeof window !== 'undefined') {
       // "no account found" or "bad signature", not an expired token.
       // Also skip for /users/me used as a session-existence check.
       const isWalletAuth = originalRequest.url?.includes('/auths/wallet/');
-      const isSessionCheck = originalRequest.url === '/users/me' && originalRequest._sessionCheck;
+      const isSessionCheck = originalRequest.url?.includes('/users/me') && originalRequest._sessionCheck;
+      const isAuthEndpoint = originalRequest.url?.includes('/auths/') || originalRequest.url?.includes('/auth/');
       if (
         error.response?.status === 401 &&
         !originalRequest._retry &&
         originalRequest.url !== '/auths/refresh' &&
         !isWalletAuth &&
-        !isSessionCheck
+        !isSessionCheck &&
+        !isAuthEndpoint
       ) {
         originalRequest._retry = true;
         try {
@@ -53,7 +55,7 @@ if (typeof window !== 'undefined') {
           await apiClient.post('/auths/refresh');
           return apiClient(originalRequest);
         } catch (refreshError) {
-          const PUBLIC_PATHS = ['/', '/login', '/signup', '/clips'];
+          const PUBLIC_PATHS = ['/', '/login', '/signup', '/clips', '/docs'];
           const currentPath = window.location.pathname;
           const isPublic = PUBLIC_PATHS.some(p => currentPath === p || currentPath.startsWith(p + '/'));
           if (typeof window !== 'undefined' && !isPublic) {

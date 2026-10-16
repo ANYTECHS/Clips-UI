@@ -41,29 +41,29 @@ export default function ClipGrid({
   return (
     <div className="flex-1 space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 pb-2 border-b border-white/5">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-4">
-            <h2 className="text-[36px] font-black text-white tracking-tight leading-none">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-white/5">
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <h2 className="text-[28px] sm:text-[36px] font-black text-white tracking-tight leading-none">
               {clips.length} clip{clips.length !== 1 ? "s" : ""}
             </h2>
-            <div className="px-2.5 py-1 rounded-md bg-brand/10 border border-brand/20 text-brand text-[10px] font-black tracking-widest leading-none">
+            <div className="px-2 py-0.5 rounded-md bg-brand/10 border border-brand/20 text-brand text-[9px] sm:text-[10px] font-black tracking-widest leading-none">
               READY
             </div>
           </div>
-          <p className="text-[14px] font-medium text-[#5A6F65]">
+          <p className="text-[13px] sm:text-[14px] font-medium text-[#5A6F65]">
             AI-generated clips ready to preview and post
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={onSelectAll}
-            className="flex items-center gap-2 px-6 py-3 rounded-xl bg-black border border-white/10 text-white font-black text-[14px] transition-all hover:bg-zinc-900 active:scale-[0.98]"
+            className="flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-black border border-white/10 text-white font-black text-[13px] sm:text-[14px] transition-all hover:bg-zinc-900 active:scale-[0.98]"
           >
             {selectedIds.length === clips.length ? "Deselect All" : "Select All"}
           </button>
-          <button className="flex items-center gap-2 px-6 py-3 rounded-xl bg-black border border-white/10 text-white font-black text-[14px] transition-all hover:bg-zinc-900 active:scale-[0.98]">
+          <button className="hidden sm:flex items-center gap-2 px-4 py-2.5 sm:px-6 sm:py-3 rounded-xl bg-black border border-white/10 text-white font-black text-[13px] sm:text-[14px] transition-all hover:bg-zinc-900 active:scale-[0.98]">
             <ListFilter className="w-4 h-4 text-[#5A6F65]" />
             <span>Newest First</span>
             <ChevronDown className="w-3.5 h-3.5 text-[#5A6F65]" />

@@ -30,11 +30,14 @@ async function getDashboardData() {
       platforms: String(platformsRes.data.accountCount || 0),
     },
     projects: videos.map((video: any) => ({
+      ...video,
       id: video.id,
       title: video.title || "Untitled Video",
       clipsCount: video.clipsCount ?? (Array.isArray(video.clips) ? video.clips.length : 0),
       status: video.status || "completed",
-      thumbnail: video.thumbnail || null,
+      thumbnail: video.thumbnail || video.thumbnailUrl || video.thumb || video.coverUrl || video.poster || null,
+      videoUrl: video.videoUrl || video.url || video.cloudinaryUrl || video.sourceUrl || null,
+      clips: video.clips || [],
     })),
     totalVideos: videosRes.data.total || videos.length,
   };

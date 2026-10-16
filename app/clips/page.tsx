@@ -1,5 +1,5 @@
 /** 
- * Clips Page - ClipCash AI
+ * Clips Page - enclips AI
  * This page handles the video import and clip generation process.
  */
 

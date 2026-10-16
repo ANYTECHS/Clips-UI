@@ -5,7 +5,6 @@ import { useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getProjectsData } from "@/lib/queries";
 import ProjectsContent from "@/components/projects/ProjectsContent";
-import WorldCupBall from "@/components/shared/WorldCupBall";
 import { Loader2 } from "lucide-react";
 
 function ProjectsInner() {
@@ -17,7 +16,7 @@ function ProjectsInner() {
   const cachedClips = queryClient.getQueryData<any[]>(["projectsData", videoId]);
   const hasCachedData = Array.isArray(cachedClips) && cachedClips.length > 0;
 
-  const { data: clips = [], isLoading, isFetching } = useQuery({
+  const { data: clips = [], isLoading } = useQuery({
     queryKey: ["projectsData", videoId],
     queryFn: () => getProjectsData(videoId),
     // If cache is already seeded, treat it as fresh — no refetch on mount
@@ -30,8 +29,6 @@ function ProjectsInner() {
     },
   });
 
-  const stillGenerating = !!videoId && !isLoading && clips.length === 0;
-
   // Hard loading — only when there's no cache at all and query hasn't finished initial run
   if (isLoading && !hasCachedData) {
     return (
@@ -39,34 +36,6 @@ function ProjectsInner() {
         <div className="flex flex-col items-center gap-4">
           <Loader2 className="w-10 h-10 text-brand animate-spin" />
           <p className="text-[#5A6F65] text-sm font-medium">Loading clips…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Clips haven't arrived yet and we're actively polling with short transition
-  if (stillGenerating) {
-    return (
-      <div className="flex-1 flex items-center justify-center min-h-screen bg-[#050505]">
-        <div className="flex flex-col items-center gap-6 text-center max-w-sm px-4">
-          <WorldCupBall size={80} />
-          <div className="space-y-2">
-            <p className="text-white text-[20px] font-extrabold tracking-tight">
-              AI is finishing up your clips…
-            </p>
-            <p className="text-[#5A6F65] text-[13px] font-medium leading-relaxed">
-              Syncing your clips now — they will appear in just a moment.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {[0, 1, 2].map((i) => (
-              <div
-                key={i}
-                className="w-2.5 h-2.5 rounded-full bg-brand"
-                style={{ animation: `pulse 1s ease-in-out ${i * 0.2}s infinite` }}
-              />
-            ))}
-          </div>
         </div>
       </div>
     );

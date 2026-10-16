@@ -12,10 +12,10 @@ export default function ProcessingHeader() {
   return (
     <header className="w-full flex items-center justify-between px-6 py-5 bg-transparent border-b border-white/5 relative z-50">
       {/* Logo */}
-      <div className="flex items-center gap-3">
-        <Logo variant="simple" />
-        <span className="text-white font-bold text-xl tracking-tight">ClipCash AI</span>
-      </div>
+      <Link href="/dashboard" className="flex items-center gap-3 hover:opacity-90 transition-opacity">
+        <Logo variant="simple" size={32} />
+        <span className="text-white font-bold text-xl tracking-tight">enclips</span>
+      </Link>
 
       {/* Nav */}
       <nav className="hidden md:flex items-center gap-8">

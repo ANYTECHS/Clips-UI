@@ -85,7 +85,7 @@ export default function PlatformsContent() {
   };
 
   return (
-    <DashboardLayout showHeader={false}>
+    <DashboardLayout>
       {/* In-app toast */}
       {toast && (
         <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl border shadow-xl animate-in slide-in-from-right-5 fade-in duration-300 ${

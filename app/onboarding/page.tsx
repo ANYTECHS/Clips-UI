@@ -98,19 +98,26 @@ function OnboardingInner() {
   const completeStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    const cleanUsername = username.trim();
+    if (cleanUsername.length < 3) {
+      alert("Username must be at least 3 characters");
+      return;
+    }
     setLoading(true);
     try {
-      const { data } = await apiClient.patch("/users/me", { username });
+      const { data } = await apiClient.patch("/users/me", { username: cleanUsername });
       setUser({
         ...data,
+        username: cleanUsername,
         onboardingStep: 2,
-        profile: { ...data.profile, username, niche },
+        profile: { ...data.profile, username: cleanUsername, niche },
       });
     } catch {
       setUser({
         ...user,
+        username: cleanUsername,
         onboardingStep: 2,
-        profile: { ...user.profile, username, niche },
+        profile: { ...user.profile, username: cleanUsername, niche },
       });
     } finally {
       setLoading(false);

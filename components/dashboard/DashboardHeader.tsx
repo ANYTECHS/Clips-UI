@@ -4,7 +4,6 @@ import React from "react";
 import { Bell, Menu } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
 import { useWallet } from "@/components/WalletProvider";
-import Link from "next/link";
 import WalletButton from "@/components/shared/WalletButton";
 
 interface HeaderProps {
@@ -17,33 +16,49 @@ export default function DashboardHeader({ onMenuClick }: HeaderProps) {
 
   return (
     <header className="w-full border-b border-white/[0.03]">
-      <div className="max-w-[1400px] mx-auto flex justify-between items-center py-6 lg:py-8 px-4 sm:px-6 lg:px-10">
-        <div className="flex items-center gap-4">
+      <div className="max-w-[1400px] mx-auto flex justify-between items-center py-4 sm:py-6 lg:py-8 px-4 sm:px-6 lg:px-10 gap-2 sm:gap-4">
+        {/* Left: Hamburger menu & Greeting */}
+        <div className="flex items-center gap-2 sm:gap-4 min-w-0">
           <button
             onClick={onMenuClick}
-            className="lg:hidden p-2 -ml-2 text-[#8e9895] hover:text-white transition-colors"
+            className="lg:hidden p-2 -ml-2 text-[#8e9895] hover:text-white transition-colors shrink-0"
+            aria-label="Open navigation menu"
           >
-            <Menu className="w-6 h-6" />
+            <Menu className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
-          <div className="space-y-0.5 sm:space-y-1">
-            <h1 className="text-[24px] sm:text-[32px] font-extrabold tracking-tight text-white leading-tight">
+          <div className="min-w-0">
+            <h1 className="text-[17px] xs:text-[20px] sm:text-[26px] lg:text-[32px] font-extrabold tracking-tight text-white leading-tight truncate">
               Welcome back, {firstName}
             </h1>
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <WalletButton className="px-4 py-3 rounded-xl bg-[#111111] border border-white/5 text-[#8e9895] hover:text-white hover:border-white/10 transition-all text-sm" />
-          <button className="w-11 h-11 rounded-xl bg-[#111111] border border-white/5 flex items-center justify-center text-[#8e9895] hover:text-white transition-colors relative">
-            <Bell className="w-5 h-5" />
+        {/* Right: Actions */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <WalletButton
+            responsiveCompact
+            className="h-10 sm:h-11 px-3 sm:px-4 rounded-xl bg-[#111111] border border-white/5 text-[#8e9895] hover:text-white hover:border-white/10 transition-all text-xs sm:text-sm flex items-center justify-center gap-2 shrink-0"
+          />
+          <button
+            className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-[#111111] border border-white/5 flex items-center justify-center text-[#8e9895] hover:text-white transition-colors relative shrink-0"
+            aria-label="Notifications"
+          >
+            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
           </button>
 
-          <Link
-            href="/clips"
-            className="bg-brand hover:bg-brand-hover text-black px-6 py-3 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,229,143,0.15)] hover:shadow-[0_0_30px_rgba(0,229,143,0.25)] active:scale-[0.97]"
-          >
-            New Clip
-          </Link>
+          <div className="relative group shrink-0">
+            <button
+              disabled
+              aria-disabled="true"
+              className="h-10 sm:h-11 bg-brand/30 text-black/50 px-3 sm:px-5 lg:px-6 rounded-xl font-bold text-[12px] sm:text-[14px] flex items-center justify-center gap-1.5 sm:gap-2 cursor-not-allowed select-none border border-brand/20 transition-colors whitespace-nowrap"
+              title="Coming soon"
+            >
+              New Clip
+            </button>
+            <div className="absolute bottom-full mb-2.5 right-0 sm:left-1/2 sm:-translate-x-1/2 px-2.5 py-1 bg-[#141A17] text-brand border border-brand/30 text-[11px] font-bold rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-all duration-200 pointer-events-none whitespace-nowrap z-30">
+              Coming soon
+            </div>
+          </div>
         </div>
       </div>
     </header>

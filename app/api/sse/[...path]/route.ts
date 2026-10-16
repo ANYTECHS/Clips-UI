@@ -22,7 +22,7 @@ export const maxDuration = 300; // 5 min max on Vercel hobby; adjust as needed
  */
 export async function GET(req: NextRequest) {
   const BACKEND_URL =
-    process.env.API_URL;
+    process.env.API_URL || "https://clipcash-api.onrender.com";
 
   // Strip /api/sse prefix to get the real backend path
   const path = req.nextUrl.pathname.replace(/^\/api\/sse/, "");

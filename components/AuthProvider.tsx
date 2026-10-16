@@ -60,7 +60,20 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     const fetchUser = async () => {
       try {
         const response = await apiClient.get("/users/me");
-        setUserState(response.data);
+        let userData = response.data;
+        if (userData && typeof window !== "undefined") {
+          const cachedUsername =
+            localStorage.getItem(`clipcash_username_${userData.id}`) ||
+            localStorage.getItem("clipcash_username");
+          if (!userData.username && cachedUsername) {
+            userData = {
+              ...userData,
+              username: cachedUsername,
+              profile: { ...(userData.profile || {}), username: cachedUsername },
+            };
+          }
+        }
+        setUserState(userData);
       } catch (error: any) {
         const status = error.response?.status;
         if (status !== 401 && status !== 503) {
@@ -125,6 +138,13 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     if (skipRedirect) {
       skipRedirectRef.current = true;
     }
+    const resolvedUsername = newUser?.username || newUser?.profile?.username;
+    if (resolvedUsername && typeof window !== "undefined") {
+      if (newUser?.id) {
+        localStorage.setItem(`clipcash_username_${newUser.id}`, resolvedUsername);
+      }
+      localStorage.setItem("clipcash_username", resolvedUsername);
+    }
     setUserState(newUser);
   };
 
@@ -134,6 +154,9 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     } catch {
       // ignore
     } finally {
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("clipcash_username");
+      }
       // Disconnect wallet so the address is cleared from the kit and localStorage.
       // This is a no-op if no wallet was connected (email users).
       try {

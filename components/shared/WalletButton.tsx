@@ -31,6 +31,8 @@ import { useToast } from "@/components/shared/ToastProvider";
 interface WalletButtonProps {
   className?: string;
   compact?: boolean;
+  /** Responsive compact: hides label on mobile (<sm), visible on sm+ */
+  responsiveCompact?: boolean;
   /** Called with the public key immediately after a successful wallet connect (login page use) */
   onConnect?: (address: string) => void;
 }
@@ -42,7 +44,7 @@ function truncate(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-export default function WalletButton({ className, compact = false, onConnect }: WalletButtonProps) {
+export default function WalletButton({ className, compact = false, responsiveCompact = false, onConnect }: WalletButtonProps) {
   const { address, isConnecting, connect, openProfile, disconnect } = useWallet();
   const { user, setUser } = useAuth();
   const { toast } = useToast();
@@ -143,6 +145,7 @@ export default function WalletButton({ className, compact = false, onConnect }: 
   };
 
   const busy = isConnecting || linking;
+  const labelClass = compact ? "hidden" : responsiveCompact ? "hidden sm:inline" : "";
 
   if (address) {
     return (
@@ -156,7 +159,7 @@ export default function WalletButton({ className, compact = false, onConnect }: 
         }
       >
         <Wallet className="w-4 h-4 shrink-0" />
-        {!compact && <span className="tabular-nums">{truncate(address)}</span>}
+        <span className={`${labelClass} tabular-nums`}>{truncate(address)}</span>
       </button>
     );
   }
@@ -172,11 +175,13 @@ export default function WalletButton({ className, compact = false, onConnect }: 
       }
     >
       {busy ? (
-        <Loader2 className="w-4 h-4 animate-spin" />
+        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
       ) : (
-        <Wallet className="w-4 h-4 text-brand" />
+        <Wallet className="w-4 h-4 text-brand shrink-0" />
       )}
-      {!compact && (busy ? "Linking wallet…" : "Connect Wallet")}
+      <span className={labelClass}>
+        {busy ? "Linking wallet…" : "Connect Wallet"}
+      </span>
     </button>
   );
 }

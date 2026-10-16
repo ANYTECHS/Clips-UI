@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 export const dynamic = 'force-dynamic';
 
 async function handler(req: NextRequest) {
-  const BACKEND_URL = process.env.API_URL;
+  const BACKEND_URL = process.env.API_URL || 'https://clipcash-api.onrender.com';
 
   const path = req.nextUrl.pathname.replace(/^\/api\/proxy/, '');
   const search = req.nextUrl.search;

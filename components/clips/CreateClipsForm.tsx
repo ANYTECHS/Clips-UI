@@ -59,7 +59,19 @@ export default function CreateClipsForm() {
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) { setSelectedFile(file); setUploadState("ready"); setError(""); }
+    if (file) {
+      if (!file.type.startsWith("video/") && !/\.(mp4|mov|avi|webm|mkv)$/i.test(file.name)) {
+        setError("Please select a valid video file (MP4, MOV, AVI, WEBM, or MKV).");
+        return;
+      }
+      if (file.size > 500 * 1024 * 1024) {
+        setError("File size exceeds 500MB limit. Please upload a smaller video.");
+        return;
+      }
+      setSelectedFile(file);
+      setUploadState("ready");
+      setError("");
+    }
   };
 
   // ── URL import ─────────────────────────────────────────────────────────────

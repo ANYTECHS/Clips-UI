@@ -9,22 +9,27 @@ import { ToastProvider } from "@/components/shared/ToastProvider";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://clipcash.ai"),
-  title: "4Reelz - AI Clipping V1.0",
+  metadataBase: new URL("https://enclips.ai"),
+  icons: {
+    icon: "/logo.jpeg",
+    shortcut: "/logo.jpeg",
+    apple: "/logo.jpeg",
+  },
+  title: "enclips - AI Clipping",
   description: "Turn 1 long video into 100+ viral clips. Preview, pick, post & mint.",
-  keywords: ["AI clipping", "viral videos", "video editing", "content creation", "SaaS", "video shorts"],
-  authors: [{ name: "4Reelz Team" }],
+  keywords: ["enclips", "AI clipping", "viral videos", "video editing", "content creation", "SaaS", "video shorts"],
+  authors: [{ name: "enclips Team" }],
   openGraph: {
-    title: "4Reelz - AI Clipping V2.0",
+    title: "enclips - AI Clipping",
     description: "Turn 1 long video into 100+ viral clips. Preview, pick, post & mint.",
-    url: "https://clipcash.ai",
-    siteName: "ClipCash",
+    url: "https://enclips.ai",
+    siteName: "enclips",
     images: [
       {
-        url: "/og-image.png",
+        url: "/logo.jpeg",
         width: 1200,
         height: 630,
-        alt: "4Reelz AI Clipping",
+        alt: "enclips AI Clipping",
       },
     ],
     locale: "en_US",
@@ -32,9 +37,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "4Reelz - AI Clipping V1.0",
+    title: "enclips - AI Clipping",
     description: "Turn 1 long video into 100+ viral clips. Preview, pick, post & mint.",
-    images: ["/og-image.png"],
+    images: ["/logo.jpeg"],
   },
   robots: {
     index: true,

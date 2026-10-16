@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import apiClient from "@/lib/apiClient";
 import { saveActiveJob } from "@/lib/processingStore";
 import { useYouTubeImport, isYouTubeUrl } from "@/lib/useYouTubeImport";
-import WalletButton from "@/components/shared/WalletButton";
 
 export default function URLForm() {
   const router = useRouter();
@@ -105,8 +104,6 @@ export default function URLForm() {
             ? <><Loader2 className="w-5 h-5 animate-spin" /> Processing</>
             : "Clip Now"}
         </button>
-
-        <WalletButton />
       </form>
 
       {/* Generic error (TikTok / Vimeo) */}

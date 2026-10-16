@@ -151,10 +151,13 @@ export default function DashboardContent({ stats: initialStats, projects: initia
             {allProjects.map((project: any, index: number) => (
               <ProjectCard 
                 key={project.id || index}
+                id={project.id}
                 title={project.title}
                 clipsCount={project.clipsCount}
                 status={project.status}
                 thumbnail={project.thumbnail}
+                videoUrl={project.videoUrl || project.url || project.cloudinaryUrl || project.sourceUrl}
+                clips={project.clips}
               />
             ))}
           </div>

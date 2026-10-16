@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import DashboardLayout from "@/components/shared/DashboardLayout";
 import { Settings, Lock, Trash2, Loader2, Camera, Upload } from "lucide-react";
 import apiClient from "@/lib/apiClient";
@@ -23,15 +23,55 @@ export default function SettingsPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  useEffect(() => {
+    if (user) {
+      if (user.fullName) setFullName(user.fullName);
+      const u = user.username || user.profile?.username;
+      if (u) setUsername(u);
+    }
+  }, [user]);
+
   const handleProfileUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
+    const cleanFullName = fullName.trim();
+    const cleanUsername = username.trim();
+
+    if (cleanFullName && cleanFullName.length < 2) {
+      toast("Full name must be at least 2 characters", "error");
+      return;
+    }
+
+    if (cleanUsername) {
+      if (cleanUsername.length < 3) {
+        toast("Username must be at least 3 characters", "error");
+        return;
+      }
+      if (!/^[a-zA-Z0-9_.-]+$/.test(cleanUsername)) {
+        toast("Username can only contain letters, numbers, underscores, and dashes", "error");
+        return;
+      }
+    }
+
     setProfileLoading(true);
     try {
       const { data } = await apiClient.patch("/users/me", {
-        fullName,
-        username,
+        fullName: cleanFullName,
+        username: cleanUsername,
       });
-      setUser(data);
+
+      const updatedUser: any = {
+        ...user,
+        ...(data && typeof data === "object" ? data : {}),
+        fullName: cleanFullName,
+        username: cleanUsername,
+        profile: {
+          ...(user?.profile || {}),
+          ...((data && typeof data === "object" && data.profile) || {}),
+          username: cleanUsername,
+        },
+      };
+
+      setUser(updatedUser);
       toast("Profile updated successfully", "success");
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Failed to update profile";
@@ -83,6 +123,18 @@ export default function SettingsPage() {
 
   const handlePasswordChange = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!oldPassword) {
+      toast("Please enter your current password", "error");
+      return;
+    }
+    if (newPassword.length < 8) {
+      toast("New password must be at least 8 characters", "error");
+      return;
+    }
+    if (newPassword === oldPassword) {
+      toast("New password cannot be the same as your current password", "error");
+      return;
+    }
     if (newPassword !== confirmPassword) {
       toast("New passwords do not match", "error");
       return;

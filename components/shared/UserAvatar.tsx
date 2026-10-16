@@ -14,7 +14,7 @@ export default function UserAvatar({ user, size = "md", className = "" }: UserAv
     lg: "w-12 h-12"
   };
 
-  const seed = user?.fullName || user?.username || user?.profile?.username || user?.email || "Guest";
+  const seed = user?.username || user?.profile?.username || user?.fullName || user?.email || "Guest";
   const avatarUrl = user?.picture || `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
 
   return (

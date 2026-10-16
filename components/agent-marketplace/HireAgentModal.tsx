@@ -80,7 +80,17 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) setSelectedFile(file);
+    if (file) {
+      if (!file.type.startsWith("video/") && !/\.(mp4|mov|avi|webm|mkv)$/i.test(file.name)) {
+        toast("Please select a valid video file (MP4, MOV, AVI, WEBM, or MKV)", "error");
+        return;
+      }
+      if (file.size > 500 * 1024 * 1024) {
+        toast("File size exceeds 500MB limit", "error");
+        return;
+      }
+      setSelectedFile(file);
+    }
   };
 
   // ── Upload file to Cloudinary + register video, return { url, videoId } ───

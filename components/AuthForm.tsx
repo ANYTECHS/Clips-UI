@@ -1,46 +1,33 @@
 "use client";
 
 import React, { useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "./AuthProvider";
 import { useRouter } from "next/navigation";
 import { z } from "zod";
 import apiClient from "@/lib/apiClient";
 import WalletButton from "@/components/shared/WalletButton";
 import { signAuthMessage, ensureHexSignature } from "@/lib/wallet";
+import EmailVerificationModal from "@/components/auth/EmailVerificationModal";
 
 // ─── Validation ───────────────────────────────────────────────────────────────
 
 const emailAuthSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().trim().email("Invalid email address"),
   password: z.string().min(8, "Password must be at least 8 characters"),
-  fullName: z.string().min(2, "Name must be at least 2 characters").optional(),
+  fullName: z.string().trim().min(2, "Name must be at least 2 characters").optional(),
 });
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
 
-const GoogleIcon = () => (
-  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff"/>
-    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff"/>
-    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#fff"/>
-    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff"/>
-  </svg>
-);
-
-const AppleIcon = () => (
-  <svg className="w-[18px] h-[18px]" viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.05 2.26.68 3.01.68.75 0 1.95-.79 3.38-.68 1.48.06 2.62.66 3.32 1.65-2.85 1.76-2.38 5.48.51 6.64-.67 1.75-1.53 3.5-2.22 4.68zm-5.28-14.8c-.1-1.55 1.25-3.05 2.81-3.23.23 1.66-1.28 3.16-2.81 3.23z"/>
-  </svg>
-);
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 interface AuthFormProps {
   mode?: "login" | "signup";
+  showWallet?: boolean;
 }
 
-export default function AuthForm({ mode = "login" }: AuthFormProps) {
+export default function AuthForm({ mode = "login", showWallet = true }: AuthFormProps) {
   const { setUser } = useAuth();
   const router = useRouter();
 
@@ -51,6 +38,10 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [info, setInfo] = useState("");
+  const [showVerificationModal, setShowVerificationModal] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
+  const [isUnverifiedLogin, setIsUnverifiedLogin] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const shakeCard = () => {
     const card = document.getElementById("auth-card");
@@ -143,11 +134,18 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
     setInfo("");
     setLoading(true);
 
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanFullName = fullName.trim();
+
     try {
+      if (currentMode === "signup" && !cleanFullName) {
+        throw new Error("Full name is required");
+      }
+
       const validationResult = emailAuthSchema.safeParse({
-        email,
+        email: cleanEmail,
         password,
-        fullName: currentMode === "signup" ? fullName : undefined,
+        fullName: currentMode === "signup" ? cleanFullName : undefined,
       });
 
       if (!validationResult.success) {
@@ -155,22 +153,16 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
       }
 
       if (currentMode === "login") {
-        await apiClient.post("/auths/login", { email, password });
-      } else {
-        await apiClient.post("/auths/signup", { fullName, email, password });
-      }
-
-      const { data: user } = await apiClient.get("/users/me");
-
-      if (currentMode === "login") {
-        // Login — AuthProvider can handle redirecting from guest pages
+        await apiClient.post("/auths/login", { email: cleanEmail, password });
+        const { data: user } = await apiClient.get("/users/me");
         setUser(user);
         router.push("/dashboard");
       } else {
-        // Signup — we handle routing ourselves so AuthProvider must not
-        // override our push to /onboarding
-        setUser(user, true); // skipRedirect=true
-        router.push("/onboarding");
+        await apiClient.post("/auths/signup", { fullName: cleanFullName, email: cleanEmail, password });
+        // Account created — verification email is sent by backend
+        setPendingVerificationEmail(cleanEmail);
+        setShowVerificationModal(true);
+        setInfo("Verification email sent! Check your inbox.");
       }
     } catch (err: any) {
       if (err.response?.status === 400) {
@@ -178,6 +170,15 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
       }
       let message = err.response?.data?.message || err.message || "An error occurred";
       if (Array.isArray(message)) message = message[0];
+
+      // If user attempted login but email is not verified yet, show inline message with action link
+      if (typeof message === "string" && message.toLowerCase().includes("verify your email")) {
+        setPendingVerificationEmail(cleanEmail);
+        setIsUnverifiedLogin(true);
+        setError("Please verify your email before logging in.");
+        shakeCard();
+        return;
+      }
 
       // Make 409 actionable — tell the user to log in instead
       if (err.response?.status === 409) {
@@ -196,43 +197,35 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
   return (
     <div
       id="auth-card"
-      className="w-[440px] bg-[#0E1512]/80 backdrop-blur-md rounded-[20px] p-[38px] shadow-[0_4px_40px_rgba(0,0,0,0.5)] border border-[#1E2A24] relative overflow-hidden"
+      className="w-full max-w-[440px] mx-auto bg-[#0E1512]/90 backdrop-blur-md rounded-[20px] p-6 sm:p-[38px] shadow-[0_4px_40px_rgba(0,0,0,0.5)] border border-[#1E2A24] relative overflow-hidden"
     >
       <div className="absolute -top-24 -right-24 w-60 h-60 bg-brand/10 rounded-full blur-[60px] pointer-events-none" />
 
-      <h2 className="text-[28px] text-white font-bold tracking-tight mb-1">
+      <h2 className="text-[24px] sm:text-[28px] text-white font-bold tracking-tight mb-1">
         {currentMode === "login" ? "Welcome back" : "Create an account"}
       </h2>
-      <p className="text-[#8e9895] mb-8 text-[15px]">
+      <p className="text-[#8e9895] mb-6 sm:mb-8 text-[14px] sm:text-[15px]">
         {currentMode === "login"
           ? "Log in to start creating viral content"
           : "Sign up to start creating viral content"}
       </p>
 
-      <div className="space-y-[14px] mb-8">
-        <div className="relative group">
-          <button
-            type="button"
-            onClick={() => {
-              window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/auths/google`;
-            }}
-            className="w-full flex items-center justify-center gap-3 bg-[#17201C] hover:bg-[#1E2B24] border border-[#233129] hover:border-brand/30 text-white py-3.5 rounded-[12px] font-medium transition-all text-[14px] active:scale-[0.98]"
-          >
-            <GoogleIcon />
-            Continue with Google
-          </button>
-        </div>
-        <WalletButton
-          onConnect={handleWalletConnect}
-          className="w-full flex items-center justify-center gap-3 bg-brand/5 hover:bg-brand/10 border border-brand/20 text-brand py-3.5 rounded-[12px] font-medium transition-all text-[14px]"
-        />
-      </div>
+      {showWallet && (
+        <>
+          <div className="mb-6 sm:mb-8">
+            <WalletButton
+              onConnect={handleWalletConnect}
+              className="w-full flex items-center justify-center gap-3 bg-brand/5 hover:bg-brand/10 border border-brand/20 text-brand py-3.5 rounded-[12px] font-medium transition-all text-[14px]"
+            />
+          </div>
 
-      <div className="flex items-center gap-4 text-[#4A5D54] text-[11px] font-bold tracking-[0.1em] uppercase mb-8">
-        <div className="flex-1 h-px bg-[#1E2A24]" />
-        OR EMAIL
-        <div className="flex-1 h-px bg-[#1E2A24]" />
-      </div>
+          <div className="flex items-center gap-4 text-[#4A5D54] text-[11px] font-bold tracking-[0.1em] uppercase mb-6 sm:mb-8">
+            <div className="flex-1 h-px bg-[#1E2A24]" />
+            OR EMAIL
+            <div className="flex-1 h-px bg-[#1E2A24]" />
+          </div>
+        </>
+      )}
 
       <form onSubmit={handleEmailSubmit} className="space-y-4">
         {currentMode === "signup" && (
@@ -259,7 +252,11 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
             type="email"
             required
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              setError("");
+              setIsUnverifiedLogin(false);
+            }}
             placeholder="name@company.com"
             className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5D54]"
           />
@@ -268,20 +265,50 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
           <label className="block text-[13px] font-medium text-[#8e9895] mb-2">
             Password
           </label>
-          <input
-            id="auth-password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder="••••••••"
-            className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5D54]"
-          />
+          <div className="relative">
+            <input
+              id="auth-password"
+              type={showPassword ? "text" : "password"}
+              required
+              value={password}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                setError("");
+                setIsUnverifiedLogin(false);
+              }}
+              placeholder="••••••••"
+              className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] pl-4 pr-11 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5D54]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8e9895] hover:text-white transition-colors p-1"
+            >
+              {showPassword ? (
+                <EyeOff className="w-4 h-4" />
+              ) : (
+                <Eye className="w-4 h-4" />
+              )}
+            </button>
+          </div>
         </div>
 
         {error && (
-          <div className="text-[13px] text-center pt-1 text-red-400">
-            {error}
+          <div className="space-y-1.5 pt-1 text-center">
+            <div className="text-[13px] text-red-400">
+              {error}
+            </div>
+            {isUnverifiedLogin && (
+              <button
+                type="button"
+                onClick={() => setShowVerificationModal(true)}
+                className="text-[12.5px] text-brand hover:underline font-medium inline-flex items-center gap-1"
+              >
+                <span>Enter verification code or resend email</span>
+                <span>→</span>
+              </button>
+            )}
           </div>
         )}
 
@@ -331,6 +358,23 @@ export default function AuthForm({ mode = "login" }: AuthFormProps) {
           </>
         )}
       </div>
+
+      <EmailVerificationModal
+        isOpen={showVerificationModal}
+        onClose={() => setShowVerificationModal(false)}
+        email={pendingVerificationEmail}
+        onChangeEmail={() => {
+          setShowVerificationModal(false);
+          const emailInput = document.getElementById("auth-email");
+          if (emailInput) {
+            emailInput.focus();
+          }
+        }}
+        onVerified={() => {
+          setShowVerificationModal(false);
+          router.push("/onboarding");
+        }}
+      />
     </div>
   );
 }

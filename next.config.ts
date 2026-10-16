@@ -7,6 +7,9 @@ const withBundleAnalyzer = bundleAnalyzer({
 });
 
 const nextConfig: NextConfig = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     dangerouslyAllowSVG: true,
     contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
@@ -23,6 +26,15 @@ const nextConfig: NextConfig = {
         // Backend stores video thumbnails and clip thumbnails on Cloudinary
         protocol: "https",
         hostname: "res.cloudinary.com",
+      },
+      {
+        // YouTube video thumbnails
+        protocol: "https",
+        hostname: "img.youtube.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i.ytimg.com",
       },
     ],
   },

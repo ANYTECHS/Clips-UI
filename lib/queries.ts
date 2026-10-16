@@ -34,11 +34,14 @@ export const getDashboardData = async () => {
         platforms: connectedPlatforms.toString(),
       },
       projects: videos.slice(0, 6).map((video: any) => ({
+        ...video,
         id: video.id,
         title: video.title || "Untitled Video",
         clipsCount: getClipsCount(video),
         status: video.status || "completed",
-        thumbnail: video.thumbnail || null,
+        thumbnail: video.thumbnail || video.thumbnailUrl || video.thumb || video.coverUrl || video.poster || null,
+        videoUrl: video.videoUrl || video.url || video.cloudinaryUrl || video.sourceUrl || null,
+        clips: video.clips || [],
       })),
       totalVideos: videosRes.data.total || videos.length,
     };
