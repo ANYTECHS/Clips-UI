@@ -28,7 +28,7 @@ export default function Error({
         </h1>
         
         <p className="text-[#a1a1aa] text-lg">
-          We encountered an unexpected error. Don't worry, your data is safe.
+          We encountered an unexpected error. Don&apos;t worry, your data is safe.
           Our team has been notified.
         </p>
 

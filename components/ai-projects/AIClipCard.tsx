@@ -158,13 +158,13 @@ export default function AIClipCard({
   title,
   thumbnail,
   clipUrl,
-  score,
-  scoreKey,
+  score: _score,
+  scoreKey: _scoreKey,
   duration,
   platform,
   createdAt,
   creatorAddress,
-  creatorName,
+  creatorName: _creatorName,
   tippingEnabled = false,
 }: AIClipCardProps) {
   const { address } = useWallet();

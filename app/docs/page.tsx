@@ -1,13 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import Link from "next/link";
 import LandingLayout from "@/components/shared/LandingLayout";
 import {
-  Sparkles,
-  Video,
   Upload,
-  Link2,
   Cpu,
   Flame,
   Type,
@@ -16,17 +13,13 @@ import {
   Wallet,
   CheckCircle2,
   ArrowRight,
-  ChevronRight,
   BookOpen,
   HelpCircle,
-  Play,
   Layers,
   Zap,
 } from "lucide-react";
 
 export default function DocsPage() {
-  const [activeTab, setActiveTab] = useState<string>("overview");
-
   const steps = [
     {
       number: "01",

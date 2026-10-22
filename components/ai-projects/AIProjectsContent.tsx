@@ -33,7 +33,7 @@ export default function AIProjectsContent({ clips }: AIProjectsContentProps) {
   const [sort, setSort] = useState("score");
 
   const filtered = useMemo(() => {
-    let result = [...clips];
+    const result = [...clips];
 
     // Sort only
     if (sort === "score") {

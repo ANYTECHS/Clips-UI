@@ -2,7 +2,7 @@
 
 import React from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Wallet, TrendingUp, CheckCircle2, ArrowUpRight, Loader2 } from "lucide-react";
+import { Wallet, TrendingUp, ArrowUpRight, Loader2 } from "lucide-react";
 import { getEarningsData } from "@/lib/queries";
 
 export default function EarningsCard() {
@@ -141,7 +141,7 @@ export default function EarningsCard() {
           
           {/* Day labels */}
           <div className="flex justify-between mt-2">
-            {earningsGraphData.map((d, i) => (
+            {earningsGraphData.map((d) => (
               <span key={d.day} className="text-[10px] text-[#5A6F65] font-medium">
                 {d.day}
               </span>

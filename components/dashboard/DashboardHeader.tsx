@@ -3,7 +3,6 @@
 import React from "react";
 import { Bell, Menu } from "lucide-react";
 import { useAuth } from "@/components/AuthProvider";
-import { useWallet } from "@/components/WalletProvider";
 import WalletButton from "@/components/shared/WalletButton";
 
 interface HeaderProps {

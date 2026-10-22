@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Innertube } from "youtubei.js";
-import vm from "vm";
 
 export const dynamic = "force-dynamic";
 

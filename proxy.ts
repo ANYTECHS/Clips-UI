@@ -7,9 +7,6 @@ export function proxy(request: NextRequest) {
   const protectedPaths = ['/dashboard', '/projects', '/clips', '/platforms', '/onboarding'];
   const isProtectedPath = protectedPaths.some(path => pathname.startsWith(path));
 
-  const guestPaths = ['/login', '/signup'];
-  const isGuestPath = guestPaths.some(path => pathname === path);
-
   const hasCookies = request.cookies.getAll().length > 0;
 
   if (isProtectedPath && !hasCookies) {

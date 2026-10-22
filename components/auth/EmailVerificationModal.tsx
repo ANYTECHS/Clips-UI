@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   Mail,
   CheckCircle2,
@@ -67,7 +67,7 @@ export default function EmailVerificationModal({
   }, [isOpen, email]);
 
   // Helper to complete verification
-  const handleVerificationSuccess = async () => {
+  const handleVerificationSuccess = useCallback(async () => {
     setVerifiedSuccess(true);
     setError("");
     try {
@@ -92,7 +92,7 @@ export default function EmailVerificationModal({
         onClose();
       }, 1500);
     }
-  };
+  }, [onClose, onVerified, router, setUser]);
 
   // Background polling to detect if user clicked the link in their email in another tab
   useEffect(() => {
@@ -116,7 +116,7 @@ export default function EmailVerificationModal({
     return () => {
       if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
     };
-  }, [isOpen, verifiedSuccess]);
+  }, [isOpen, verifiedSuccess, handleVerificationSuccess]);
 
   // Verify using token or code
   const handleVerifyToken = async (e?: React.FormEvent) => {
@@ -186,7 +186,7 @@ export default function EmailVerificationModal({
       setResendCooldown(60);
     } catch (err: any) {
       const backendMessage = err.response?.data?.message || err.message;
-      let msg = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage;
+      const msg = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage;
       if (err.response?.status === 400 && msg?.toLowerCase().includes("already verified")) {
         setResendStatus("This email is already verified! You can proceed to log in.");
         setTimeout(() => {

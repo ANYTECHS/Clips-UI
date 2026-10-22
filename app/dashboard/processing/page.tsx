@@ -33,8 +33,6 @@ const SSE_SILENCE_TIMEOUT = 45_000;  // 45 s watchdog before starting backup pol
 const POLL_INTERVAL       = 4_000;   // poll every 4 s
 const MAX_WAIT_MS         = 15 * 60 * 1000; // 15 min hard cap
 
-type Status = "analyzing" | "processing" | "done" | "completed" | "failed" | "error";
-
 function ProcessingContent() {
   const [progress,   setProgress]   = useState(0);
   const [statusMsg,  setStatusMsg]  = useState(() => {

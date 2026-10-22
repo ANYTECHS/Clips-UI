@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, Suspense } from "react";
+import React, { useEffect, useState, useCallback, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { CheckCircle2, AlertCircle, Loader2, Mail, ArrowRight, RefreshCw } from "lucide-react";
 import LandingLayout from "@/components/shared/LandingLayout";
@@ -34,7 +34,7 @@ function VerifyEmailContent() {
     return () => clearInterval(interval);
   }, [resendCooldown]);
 
-  const verifyToken = async (tok: string) => {
+  const verifyToken = useCallback(async (tok: string) => {
     const clean = tok.trim();
     if (!clean) {
       setStatus("error");
@@ -63,17 +63,17 @@ function VerifyEmailContent() {
     } catch (err: any) {
       console.error("Verification failed:", err);
       const backendMessage = err.response?.data?.message || err.message;
-      let msg = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage;
+      const msg = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage;
       setStatus("error");
       setErrorMessage(msg || "Invalid or expired verification token. Please request a new one.");
     }
-  };
+  }, [router, setUser]);
 
   useEffect(() => {
     if (tokenParam) {
       verifyToken(tokenParam);
     }
-  }, [tokenParam]);
+  }, [tokenParam, verifyToken]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -97,7 +97,7 @@ function VerifyEmailContent() {
       setResendCooldown(60);
     } catch (err: any) {
       const backendMessage = err.response?.data?.message || err.message;
-      let msg = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage;
+      const msg = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage;
       setErrorMessage(msg || "Could not resend verification email.");
     } finally {
       setResending(false);

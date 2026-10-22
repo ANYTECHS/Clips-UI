@@ -31,7 +31,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
   const { setUser } = useAuth();
   const router = useRouter();
 
-  const [currentMode, setCurrentMode] = useState<"login" | "signup">(mode);
+  const currentMode = mode;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
@@ -73,7 +73,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
       const challengeRes = await apiClient.post("/auths/wallet/challenge", {
         stellarAddress: address,
       });
-      const { challenge, message: humanReadableMessage } = challengeRes.data;
+      const { challenge } = challengeRes.data;
 
       if (!challenge) {
         throw new Error("Failed to get a valid challenge from the server.");

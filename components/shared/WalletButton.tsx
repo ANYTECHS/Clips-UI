@@ -21,7 +21,7 @@
  */
 
 import React, { useState } from "react";
-import { Loader2, Wallet, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, Wallet } from "lucide-react";
 import { useWallet } from "@/components/WalletProvider";
 import { connectStellarWallet, getConnectWalletChallenge, disconnectStellarWallet } from "@/lib/queries";
 import { signAuthMessage, ensureHexSignature, getWalletAddress } from "@/lib/wallet";

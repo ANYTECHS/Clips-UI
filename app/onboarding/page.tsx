@@ -58,7 +58,7 @@ function OnboardingInner() {
         stellarAddress: signupAddress,
       });
 
-      const { challenge, message: humanReadableMessage } = challengeRes.data;
+      const { challenge } = challengeRes.data;
 
       if (!challenge) {
         throw new Error("Failed to get a valid challenge from the server.");

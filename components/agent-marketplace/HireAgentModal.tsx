@@ -2,7 +2,7 @@
 
 import React, { useState, useRef } from "react";
 import {
-  X, Bot, Link2, Loader2, CheckCircle2,
+  X, Bot, Link2, Loader2,
   AlertCircle, Wallet, CreditCard, Zap,
   Upload, Film, Check, Sparkles,
 } from "lucide-react";
@@ -13,8 +13,8 @@ import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
 import {
   buildAgentPaymentXdr, hireAgent,
   buildSubscriptionPaymentXdr, activateSubscription,
-  getMySubscription, getStellarAgentJob,
-  type Agent, type StellarSubscription, type AgentJob,
+  getMySubscription,
+  type Agent, type StellarSubscription,
 } from "@/lib/queries";
 import apiClient from "@/lib/apiClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -56,7 +56,6 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
   const [selPlan,        setSelPlan]        = useState<"STARTER" | "CREATOR" | "PRO">("CREATOR");
   const [step,           setStep]           = useState<Step>("config");
   const [errMsg,         setErrMsg]         = useState("");
-  const [createdJob,     setCreatedJob]     = useState<AgentJob | null>(null);
 
   const { data: subscription } = useQuery<StellarSubscription | null>({
     queryKey: ["mySubscription"],

@@ -3,19 +3,16 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Bot, BriefcaseBusiness, Sparkles, Loader2,
+  Bot, Sparkles, Loader2,
   Zap, CreditCard, Crown,
 } from "lucide-react";
 import { getAgents, getMySubscription, type Agent, type StellarSubscription } from "@/lib/queries";
 import AgentCard from "./AgentCard";
 import HireAgentModal from "./HireAgentModal";
-import JobsTab from "./JobsTab";
-import { useRouter } from "next/navigation";
 
 type Tab = "agents" | "jobs" | "subscription";
 
 export default function AgentMarketplaceContent() {
-  const router       = useRouter();
   const queryClient  = useQueryClient();
 
   const [activeTab,   setActiveTab]   = useState<Tab>("agents");
@@ -45,11 +42,6 @@ export default function AgentMarketplaceContent() {
     setHiringAgent(null);
     setActiveTab("jobs");
     queryClient.invalidateQueries({ queryKey: ["agentJobs"] });
-  };
-
-  const handleViewClips = (clipIds: number[]) => {
-    if (clipIds.length === 0) return;
-    router.push(`/projects`);
   };
 
   // ── Tabs ──────────────────────────────────────────────────────────────────
