@@ -13,14 +13,16 @@ function VerifyEmailContent() {
   const router = useRouter();
   const { setUser } = useAuth();
 
-  const tokenParam = searchParams.get("token") || "";
+  const emailParam = searchParams.get("email") || "";
+  const otpParam = searchParams.get("otp") || searchParams.get("token") || "";
 
-  const [tokenInput, setTokenInput] = useState(tokenParam);
+  const [emailInput, setEmailInput] = useState(emailParam);
+  const [tokenInput, setTokenInput] = useState(otpParam);
   const [status, setStatus] = useState<"verifying" | "success" | "error" | "idle">(
-    tokenParam ? "verifying" : "idle"
+    emailParam && otpParam ? "verifying" : "idle"
   );
   const [errorMessage, setErrorMessage] = useState("");
-  const [resendEmail, setResendEmail] = useState("");
+  const [resendEmail, setResendEmail] = useState(emailParam);
   const [resending, setResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState("");
   const [resendCooldown, setResendCooldown] = useState(0);
@@ -34,11 +36,17 @@ function VerifyEmailContent() {
     return () => clearInterval(interval);
   }, [resendCooldown]);
 
-  const verifyToken = useCallback(async (tok: string) => {
-    const clean = tok.trim();
-    if (!clean) {
+  const verifyOtp = useCallback(async (targetEmail: string, code: string) => {
+    const cleanEmail = targetEmail.trim().toLowerCase();
+    const cleanOtp = code.trim();
+    if (!cleanEmail) {
       setStatus("error");
-      setErrorMessage("No verification token was provided.");
+      setErrorMessage("Please enter your email address.");
+      return;
+    }
+    if (!cleanOtp) {
+      setStatus("error");
+      setErrorMessage("Please enter your 6-digit verification code.");
       return;
     }
 
@@ -46,7 +54,10 @@ function VerifyEmailContent() {
     setErrorMessage("");
 
     try {
-      await apiClient.get(`/auths/verify-email?token=${encodeURIComponent(clean)}`);
+      await apiClient.post("/auths/verify-email", {
+        email: cleanEmail,
+        otp: cleanOtp,
+      });
       
       // Fetch user profile and update auth state
       try {
@@ -65,21 +76,19 @@ function VerifyEmailContent() {
       const backendMessage = err.response?.data?.message || err.message;
       const msg = Array.isArray(backendMessage) ? backendMessage[0] : backendMessage;
       setStatus("error");
-      setErrorMessage(msg || "Invalid or expired verification token. Please request a new one.");
+      setErrorMessage(msg || "Invalid or expired verification code. Please request a new one.");
     }
   }, [router, setUser]);
 
   useEffect(() => {
-    if (tokenParam) {
-      verifyToken(tokenParam);
+    if (emailParam && otpParam) {
+      verifyOtp(emailParam, otpParam);
     }
-  }, [tokenParam, verifyToken]);
+  }, [emailParam, otpParam, verifyOtp]);
 
   const handleManualSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (tokenInput.trim()) {
-      verifyToken(tokenInput.trim());
-    }
+    verifyOtp(emailInput || resendEmail, tokenInput);
   };
 
   const handleResend = async (e: React.FormEvent) => {
@@ -157,26 +166,43 @@ function VerifyEmailContent() {
             </div>
           </div>
 
-          {/* Try with another token */}
+          {/* Try with email and OTP */}
           <form onSubmit={handleManualSubmit} className="space-y-3 pt-2">
-            <label className="block text-[12.5px] font-medium text-[#8e9895]">
-              Have a code or token? Enter it below:
-            </label>
-            <div className="flex gap-2">
+            <div>
+              <label className="block text-[12.5px] font-medium text-[#8e9895] mb-1">
+                Your Email
+              </label>
               <input
-                type="text"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="Paste verification token"
-                className="flex-1 bg-[#131A17] border border-[#1E2A24] text-white rounded-[12px] px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-brand/70 font-mono"
+                type="email"
+                required
+                value={emailInput}
+                onChange={(e) => setEmailInput(e.target.value)}
+                placeholder="name@example.com"
+                className="w-full bg-[#131A17] border border-[#1E2A24] text-white rounded-[12px] px-3.5 py-2.5 text-[14px] focus:outline-none focus:border-brand/70"
               />
-              <button
-                type="submit"
-                disabled={!tokenInput.trim()}
-                className="bg-brand hover:bg-brand-hover text-black px-4 py-2.5 rounded-[12px] font-bold text-[13px] disabled:opacity-50 transition-colors"
-              >
-                Verify
-              </button>
+            </div>
+            <div>
+              <label className="block text-[12.5px] font-medium text-[#8e9895] mb-1">
+                6-Digit Verification Code (OTP)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  maxLength={10}
+                  required
+                  value={tokenInput}
+                  onChange={(e) => setTokenInput(e.target.value)}
+                  placeholder="205283"
+                  className="flex-1 bg-[#131A17] border border-[#1E2A24] text-white rounded-[12px] px-3.5 py-2.5 text-[16px] text-center focus:outline-none focus:border-brand/70 font-mono tracking-widest placeholder:tracking-normal placeholder:text-[#3A4A43]"
+                />
+                <button
+                  type="submit"
+                  disabled={!tokenInput.trim() || !emailInput.trim()}
+                  className="bg-brand hover:bg-brand-hover text-black px-5 py-2.5 rounded-[12px] font-bold text-[13px] disabled:opacity-50 transition-colors"
+                >
+                  Verify
+                </button>
+              </div>
             </div>
           </form>
 
@@ -184,7 +210,7 @@ function VerifyEmailContent() {
           <div className="p-4 rounded-[16px] bg-[#131A17] border border-[#1E2A24] space-y-3">
             <div className="flex items-center gap-2 text-white text-[13px] font-semibold">
               <Mail className="w-4 h-4 text-brand" />
-              <span>Need a new verification link?</span>
+              <span>Need a new verification code?</span>
             </div>
 
             {resendSuccess && (
@@ -197,14 +223,17 @@ function VerifyEmailContent() {
               <input
                 type="email"
                 required
-                value={resendEmail}
-                onChange={(e) => setResendEmail(e.target.value)}
+                value={resendEmail || emailInput}
+                onChange={(e) => {
+                  setResendEmail(e.target.value);
+                  setEmailInput(e.target.value);
+                }}
                 placeholder="name@example.com"
                 className="flex-1 bg-[#0E1512] border border-[#1E2A24] text-white rounded-[10px] px-3 py-2 text-[13px] focus:outline-none focus:border-brand/70"
               />
               <button
                 type="submit"
-                disabled={resending || resendCooldown > 0 || !resendEmail.trim()}
+                disabled={resending || resendCooldown > 0 || !(resendEmail || emailInput).trim()}
                 className="bg-white/10 hover:bg-white/15 text-white px-3.5 py-2 rounded-[10px] font-medium text-[12.5px] disabled:opacity-50 transition-colors flex items-center gap-1.5"
               >
                 {resending ? (
@@ -214,7 +243,7 @@ function VerifyEmailContent() {
                 ) : (
                   <>
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>Resend</span>
+                    <span>Resend Code</span>
                   </>
                 )}
               </button>
@@ -238,24 +267,46 @@ function VerifyEmailContent() {
             <div className="space-y-1">
               <h2 className="text-2xl font-bold text-white tracking-tight">Email Verification</h2>
               <p className="text-[#8e9895] text-[13.5px]">
-                Paste the verification code or token sent to your email to verify your account.
+                Enter your email and the 6-digit code sent to your inbox to verify your account.
               </p>
             </div>
           </div>
 
-          <form onSubmit={handleManualSubmit} className="space-y-4">
-            <input
-              type="text"
-              required
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Paste verification token here"
-              className="w-full bg-[#131A17] border border-[#1E2A24] text-white rounded-[12px] px-4 py-3 text-[14px] focus:outline-none focus:border-brand/70 font-mono"
-            />
+          <form onSubmit={handleManualSubmit} className="space-y-3">
+            <div>
+              <label className="block text-[12.5px] font-medium text-[#8e9895] mb-1">
+                Your Email
+              </label>
+              <input
+                type="email"
+                required
+                value={emailInput}
+                onChange={(e) => {
+                  setEmailInput(e.target.value);
+                  setResendEmail(e.target.value);
+                }}
+                placeholder="name@example.com"
+                className="w-full bg-[#131A17] border border-[#1E2A24] text-white rounded-[12px] px-4 py-3 text-[14px] focus:outline-none focus:border-brand/70"
+              />
+            </div>
+            <div>
+              <label className="block text-[12.5px] font-medium text-[#8e9895] mb-1">
+                6-Digit Verification Code (OTP)
+              </label>
+              <input
+                type="text"
+                maxLength={10}
+                required
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="205283"
+                className="w-full bg-[#131A17] border border-[#1E2A24] text-white rounded-[12px] px-4 py-3 text-[18px] text-center focus:outline-none focus:border-brand/70 font-mono tracking-widest placeholder:tracking-normal placeholder:text-[#3A4A43]"
+              />
+            </div>
             <button
               type="submit"
-              disabled={!tokenInput.trim()}
-              className="w-full bg-brand hover:bg-brand-hover text-black py-3 rounded-[12px] font-bold text-[14px] disabled:opacity-50 transition-colors"
+              disabled={!tokenInput.trim() || !emailInput.trim()}
+              className="w-full bg-brand hover:bg-brand-hover text-black py-3.5 rounded-[12px] font-bold text-[14px] disabled:opacity-50 transition-colors"
             >
               Verify Code
             </button>

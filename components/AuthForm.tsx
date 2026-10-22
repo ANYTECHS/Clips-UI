@@ -40,7 +40,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
   const [info, setInfo] = useState("");
   const [showVerificationModal, setShowVerificationModal] = useState(false);
   const [pendingVerificationEmail, setPendingVerificationEmail] = useState("");
-  const [isUnverifiedLogin, setIsUnverifiedLogin] = useState(false);
+  const [isUnverified, setIsUnverified] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
   const shakeCard = () => {
@@ -174,15 +174,46 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
       // If user attempted login but email is not verified yet, show inline message with action link
       if (typeof message === "string" && message.toLowerCase().includes("verify your email")) {
         setPendingVerificationEmail(cleanEmail);
-        setIsUnverifiedLogin(true);
+        setIsUnverified(true);
         setError("Please verify your email before logging in.");
         shakeCard();
         return;
       }
 
-      // Make 409 actionable — tell the user to log in instead
+      // Handle 409 Conflict during signup or login (email already registered)
       if (err.response?.status === 409) {
-        message = "This email is already registered. Try logging in instead.";
+        if (currentMode === "signup") {
+          // Check if this existing account is actually UNVERIFIED by attempting to resend verification
+          try {
+            await apiClient.post("/auths/resend-verification", { email: cleanEmail });
+            // It succeeded! The account exists in the DB but is unverified.
+            setPendingVerificationEmail(cleanEmail);
+            setShowVerificationModal(true);
+            setInfo("An account creation was already started with this email. We've sent a fresh verification code to your inbox!");
+            setLoading(false);
+            return;
+          } catch (resendErr: any) {
+            const resendBackendMsg = resendErr.response?.data?.message || resendErr.message || "";
+            const resendMsgStr = Array.isArray(resendBackendMsg) ? resendBackendMsg[0] : resendBackendMsg;
+            const isAlreadyVerified =
+              resendErr.response?.status === 400 &&
+              typeof resendMsgStr === "string" &&
+              resendMsgStr.toLowerCase().includes("already verified");
+
+            setPendingVerificationEmail(cleanEmail);
+
+            if (isAlreadyVerified) {
+              setIsUnverified(false);
+              message = "This email is already registered and verified. Please sign in instead.";
+            } else {
+              // Still unverified (e.g. cooldown active or resend temporarily rate limited)
+              setIsUnverified(true);
+              message = "This email was already submitted but has not been verified yet. Enter your code below or request a new one.";
+            }
+          }
+        } else {
+          message = "This email is already registered. Try logging in instead.";
+        }
       }
 
       setError(message);
@@ -255,7 +286,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
             onChange={(e) => {
               setEmail(e.target.value);
               setError("");
-              setIsUnverifiedLogin(false);
+              setIsUnverified(false);
             }}
             placeholder="name@company.com"
             className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5D54]"
@@ -274,7 +305,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
               onChange={(e) => {
                 setPassword(e.target.value);
                 setError("");
-                setIsUnverifiedLogin(false);
+                setIsUnverified(false);
               }}
               placeholder="••••••••"
               className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] pl-4 pr-11 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5D54]"
@@ -295,19 +326,25 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
         </div>
 
         {error && (
-          <div className="space-y-1.5 pt-1 text-center">
+          <div className="space-y-2 pt-1 text-center">
             <div className="text-[13px] text-red-400">
               {error}
             </div>
-            {isUnverifiedLogin && (
-              <button
-                type="button"
-                onClick={() => setShowVerificationModal(true)}
-                className="text-[12.5px] text-brand hover:underline font-medium inline-flex items-center gap-1"
-              >
-                <span>Enter verification code or resend email</span>
-                <span>→</span>
-              </button>
+            {isUnverified && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const targetEmail = pendingVerificationEmail || email.trim().toLowerCase();
+                    setPendingVerificationEmail(targetEmail);
+                    setShowVerificationModal(true);
+                  }}
+                  className="text-[12.5px] text-brand hover:underline font-semibold inline-flex items-center gap-1.5 bg-brand/10 hover:bg-brand/15 px-3 py-1.5 rounded-lg border border-brand/20 transition-all"
+                >
+                  <span>Enter verification code or resend OTP</span>
+                  <span>→</span>
+                </button>
+              </div>
             )}
           </div>
         )}
@@ -358,6 +395,22 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
           </>
         )}
       </div>
+
+      {currentMode === "signup" && (
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              const targetEmail = pendingVerificationEmail || email.trim().toLowerCase();
+              setPendingVerificationEmail(targetEmail);
+              setShowVerificationModal(true);
+            }}
+            className="text-[12px] text-[#5A6F65] hover:text-brand transition-colors underline"
+          >
+            Already have a verification code? Verify now
+          </button>
+        </div>
+      )}
 
       <EmailVerificationModal
         isOpen={showVerificationModal}

@@ -36,6 +36,7 @@ export default function EmailVerificationModal({
   const router = useRouter();
 
   const [token, setToken] = useState("");
+  const [inputEmail, setInputEmail] = useState(email || "");
   const [verifying, setVerifying] = useState(false);
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [resending, setResending] = useState(false);
@@ -44,6 +45,10 @@ export default function EmailVerificationModal({
   const [resendStatus, setResendStatus] = useState("");
   const [verifiedSuccess, setVerifiedSuccess] = useState(false);
   const [copiedPasted, setCopiedPasted] = useState(false);
+
+  useEffect(() => {
+    if (email) setInputEmail(email);
+  }, [email]);
 
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -123,16 +128,27 @@ export default function EmailVerificationModal({
     if (e) e.preventDefault();
     let cleanToken = token.trim();
     if (!cleanToken) {
-      setError("Please enter the verification code or token from your email.");
+      setError("Please enter the 6-digit verification code from your email.");
       return;
     }
 
-    // Smart handling: if the user pastes an entire link, extract the token query param
-    if (cleanToken.includes("token=")) {
+    // Smart handling: if the user pastes an entire link, extract the otp or token query param
+    if (cleanToken.includes("otp=")) {
+      const match = cleanToken.match(/[?&]otp=([^&]+)/);
+      if (match && match[1]) {
+        cleanToken = decodeURIComponent(match[1]);
+      }
+    } else if (cleanToken.includes("token=")) {
       const match = cleanToken.match(/[?&]token=([^&]+)/) || cleanToken.match(/token=([^&]+)/);
       if (match && match[1]) {
         cleanToken = decodeURIComponent(match[1]);
       }
+    }
+
+    const targetEmail = (inputEmail || email).trim().toLowerCase();
+    if (!targetEmail) {
+      setError("Please provide your email address.");
+      return;
     }
 
     setError("");
@@ -140,7 +156,11 @@ export default function EmailVerificationModal({
     setVerifying(true);
 
     try {
-      await apiClient.get(`/auths/verify-email?token=${encodeURIComponent(cleanToken)}`);
+      // Backend expects POST /auths/verify-email with { email, otp }
+      await apiClient.post("/auths/verify-email", {
+        email: targetEmail,
+        otp: cleanToken,
+      });
       await handleVerificationSuccess();
     } catch (err: any) {
       console.error("Token verification error:", err);
@@ -180,8 +200,14 @@ export default function EmailVerificationModal({
     setError("");
     setResendStatus("");
 
+    const target = (inputEmail || email).trim().toLowerCase();
+    if (!target) {
+      setError("Please enter your email address to resend the code.");
+      return;
+    }
+
     try {
-      await apiClient.post("/auths/resend-verification", { email: email.trim().toLowerCase() });
+      await apiClient.post("/auths/resend-verification", { email: target });
       setResendStatus("A new verification email has been sent! Check your inbox.");
       setResendCooldown(60);
     } catch (err: any) {
@@ -282,23 +308,35 @@ export default function EmailVerificationModal({
                 </p>
               </div>
 
-              {/* Email Pill Badge */}
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#131A17] border border-[#1E2A24] text-white text-[13px] font-medium">
-                <span className="text-brand max-w-[240px] truncate">{email}</span>
-                {onChangeEmail && (
-                  <button
-                    onClick={() => {
-                      onClose();
-                      onChangeEmail();
-                    }}
-                    type="button"
-                    title="Change email"
-                    className="text-[#8e9895] hover:text-white transition-colors ml-1 p-0.5"
-                  >
-                    <Edit3 className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
+              {/* Email Pill Badge or Input */}
+              {email ? (
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#131A17] border border-[#1E2A24] text-white text-[13px] font-medium">
+                  <span className="text-brand max-w-[240px] truncate">{email}</span>
+                  {onChangeEmail && (
+                    <button
+                      onClick={() => {
+                        onClose();
+                        onChangeEmail();
+                      }}
+                      type="button"
+                      title="Change email"
+                      className="text-[#8e9895] hover:text-white transition-colors ml-1 p-0.5"
+                    >
+                      <Edit3 className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <div className="w-full max-w-[320px]">
+                  <input
+                    type="email"
+                    value={inputEmail}
+                    onChange={(e) => setInputEmail(e.target.value)}
+                    placeholder="Enter your email address"
+                    className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-3.5 py-2 text-[13px] focus:outline-none placeholder-[#4A5D54] text-center"
+                  />
+                </div>
+              )}
             </div>
 
             {/* Error or Resend Status Banners */}
@@ -321,7 +359,7 @@ export default function EmailVerificationModal({
               <div>
                 <div className="flex items-center justify-between mb-1.5">
                   <label className="text-[12.5px] font-medium text-[#8e9895]">
-                    Verification Code
+                    6-Digit Verification Code (OTP)
                   </label>
                   {typeof navigator !== "undefined" && navigator.clipboard && (
                     <button
@@ -337,7 +375,7 @@ export default function EmailVerificationModal({
                       ) : (
                         <>
                           <ClipboardPaste className="w-3 h-3" />
-                          <span>Paste from clipboard</span>
+                          <span>Paste code</span>
                         </>
                       )}
                     </button>
@@ -347,13 +385,14 @@ export default function EmailVerificationModal({
                 <div className="relative">
                   <input
                     type="text"
+                    maxLength={10}
                     value={token}
                     onChange={(e) => {
                       setToken(e.target.value);
                       setError("");
                     }}
-                    placeholder="Enter code or paste token"
-                    className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[15px] focus:outline-none focus:bg-[#161F1A] transition-all font-mono tracking-wider"
+                    placeholder="205283"
+                    className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[20px] text-center focus:outline-none focus:bg-[#161F1A] transition-all font-mono tracking-[0.25em] placeholder:text-[#3A4A43] placeholder:tracking-normal"
                   />
                 </div>
               </div>
