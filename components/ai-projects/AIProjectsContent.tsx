@@ -65,52 +65,70 @@ export default function AIProjectsContent({ clips }: AIProjectsContentProps) {
     <div className="px-4 sm:px-6 lg:px-10 py-10 max-w-[1400px] mx-auto w-full space-y-10">
 
       {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-white/[0.04] pb-8">
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-[11px] font-black tracking-widest uppercase">
-            <Sparkles className="w-3.5 h-3.5" />
-            Public Feed
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/[0.08] border border-brand/20 text-brand text-[11px] font-mono font-bold tracking-[0.16em] uppercase">
+            <Sparkles className="w-3.5 h-3.5 fill-brand" />
+            COMMUNITY SHOWCASE FEED
           </div>
-         
-          <p className="text-[#5A6F65] text-[15px] font-medium max-w-lg leading-relaxed">
-            Discover viral clips from creators around the world. Browse, preview, and tip to download.
+          <h1 className="text-[32px] sm:text-[42px] font-black tracking-tight text-white leading-tight">
+            Viral Clips <span className="text-gradient-brand">Showcase</span>
+          </h1>
+          <p className="text-[#8E9F97] text-[15px] font-normal max-w-lg leading-relaxed">
+            Discover trending short-form moments extracted by creators around the world. Preview hooks and tip creators on Stellar.
           </p>
         </div>
 
         {/* Stats strip */}
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="bg-[#0B100E] border border-white/5 rounded-2xl px-5 py-3 text-center">
-            <p className="text-[28px] font-black text-white leading-none">{clips.length}</p>
-            <p className="text-[10px] font-bold text-[#5A6F65] uppercase tracking-widest mt-1">Total Clips</p>
+        <div className="flex items-center gap-3 sm:gap-4 shrink-0">
+          <div className="bg-[#0B100E] border border-white/8 rounded-2xl px-5 py-3 text-center shadow-sm">
+            <p className="text-[28px] sm:text-[32px] font-black text-white font-mono leading-none tracking-tight tabular-nums">
+              {clips.length}
+            </p>
+            <p className="text-[10px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.14em] mt-1.5">
+              Total Clips
+            </p>
           </div>
-          <div className="bg-[#0B100E] border border-white/5 rounded-2xl px-5 py-3 text-center">
-            <p className="text-[28px] font-black text-brand leading-none">{highCount}</p>
-            <p className="text-[10px] font-bold text-[#5A6F65] uppercase tracking-widest mt-1">High Viral</p>
+          <div className="bg-[#0B100E] border border-white/8 rounded-2xl px-5 py-3 text-center shadow-sm">
+            <p className="text-[28px] sm:text-[32px] font-black text-brand font-mono leading-none tracking-tight tabular-nums">
+              {highCount}
+            </p>
+            <p className="text-[10px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.14em] mt-1.5">
+              High Viral
+            </p>
           </div>
-          <div className="bg-[#0B100E] border border-white/5 rounded-2xl px-5 py-3 text-center">
-            <p className="text-[28px] font-black text-white leading-none">{avgScore}</p>
-            <p className="text-[10px] font-bold text-[#5A6F65] uppercase tracking-widest mt-1">Avg Score</p>
+          <div className="bg-[#0B100E] border border-white/8 rounded-2xl px-5 py-3 text-center shadow-sm">
+            <p className="text-[28px] sm:text-[32px] font-black text-white font-mono leading-none tracking-tight tabular-nums">
+              {avgScore}
+            </p>
+            <p className="text-[10px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.14em] mt-1.5">
+              Avg Score
+            </p>
           </div>
         </div>
       </div>
 
       {/* ── Controls ── */}
-      <div className="flex items-center gap-2">
-        {/* Sort */}
-        {SORT_OPTIONS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setSort(key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all ${
-              sort === key
-                ? "bg-white/10 border border-white/20 text-white"
-                : "bg-[#0B100E] border border-white/8 text-[#5A6F65] hover:text-white hover:border-white/20"
-            }`}
-          >
-            <Icon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{label}</span>
-          </button>
-        ))}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          {SORT_OPTIONS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSort(key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-[12px] font-bold transition-all cursor-pointer ${
+                sort === key
+                  ? "bg-brand/10 border border-brand/40 text-brand shadow-[0_0_15px_rgba(0,229,143,0.15)]"
+                  : "bg-[#0B100E] border border-white/8 text-[#8E9F97] hover:text-white hover:border-white/20"
+              }`}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span>{label}</span>
+            </button>
+          ))}
+        </div>
+        <span className="text-xs font-mono text-[#5A6F65] hidden sm:inline">
+          Showing {filtered.length} clips
+        </span>
       </div>
 
 

@@ -77,65 +77,68 @@ export default function DashboardSidebar({ isOpen, onClose }: SidebarProps) {
     : staticMenuItems;
 
   return (
-    <aside className={`fixed top-0 left-0 h-screen w-[280px] bg-[#080C0B] border-r border-white/5 z-50 flex flex-col transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-      <div className="p-8 flex items-center justify-between">
-        <Logo />
+    <aside className={`fixed top-0 left-0 h-screen w-[280px] bg-[#070B09]/95 backdrop-blur-2xl border-r border-white/[0.06] z-50 flex flex-col transition-transform duration-300 lg:translate-x-0 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <div className="p-6 flex items-center justify-between border-b border-white/[0.04]">
+        <Logo size={32} />
         <button 
           onClick={onClose}
-          className="lg:hidden p-2 -mr-2 text-[#5A6F65] hover:text-white transition-colors"
+          className="lg:hidden p-2 -mr-2 text-[#5A6F65] hover:text-white transition-colors rounded-xl bg-white/[0.02]"
         >
-          <X className="w-6 h-6" />
+          <X className="w-5 h-5" />
         </button>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-4 space-y-1">
+      <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto scrollbar-hide">
+        <div className="px-3 pb-2 text-[10px] font-mono font-bold uppercase tracking-[0.18em] text-[#4A5D54]">
+          Studio Navigation
+        </div>
         {menuItems.map((item) => {
           const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
           return (
             <Link
               key={item.id}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 group ${
+              className={`flex items-center gap-3 px-3.5 py-3 rounded-2xl transition-all duration-200 group ${
                 isActive 
-                  ? "bg-brand/10 text-brand font-bold" 
-                  : "text-[#8e9895] hover:text-white hover:bg-white/[0.03]"
+                  ? "bg-brand/[0.08] text-brand font-bold border border-brand/20 shadow-[inset_0_0_12px_rgba(0,229,143,0.08)]" 
+                  : "text-[#8E9F97] hover:text-white hover:bg-white/[0.03] border border-transparent"
               }`}
             >
-              <item.icon className={`w-5 h-5 ${isActive ? "text-brand" : "text-[#4A5D54] group-hover:text-white"}`} />
-              <span className="text-[14px]">{item.label}</span>
+              <item.icon className={`w-4.5 h-4.5 ${isActive ? "text-brand" : "text-[#4A5D54] group-hover:text-white transition-colors"}`} />
+              <span className="text-[13.5px]">{item.label}</span>
               {item.id === "projects" && hasClips && (
-                <span className="ml-auto px-1.5 py-0.5 rounded-md bg-brand/15 text-brand text-[9px] font-black tracking-wider">
+                <span className="ml-auto px-2 py-0.5 rounded-full bg-brand/15 text-brand text-[10px] font-mono font-black tracking-wider">
                   {clipCount > 99 ? "99+" : clipCount}
                 </span>
               )}
               {isActive && item.id !== "projects" && (
-                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand shadow-[0_0_8px_rgba(0,229,143,0.8)]" />
+                <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand shadow-[0_0_8px_rgba(0,229,143,0.9)]" />
               )}
             </Link>
           );
         })}
       </nav>
 
-      {/* User Info */}
-      <div className="p-6 border-t border-white/5 bg-[#080C0B]/50">
-        <div className="flex items-center gap-3">
-          <UserAvatar user={user} />
+      {/* User Info Card */}
+      <div className="p-4 border-t border-white/[0.06] bg-[#050807]">
+        <div className="flex items-center gap-3 p-2.5 rounded-2xl bg-white/[0.02] border border-white/5">
+          <UserAvatar user={user} size="sm" />
           <div className="flex-1 min-w-0">
-            <div className="text-[14px] font-bold text-white truncate">
-              {user?.username || user?.profile?.username || user?.fullName || ""}
+            <div className="text-[13px] font-bold text-white truncate">
+              {user?.username || user?.profile?.username || user?.fullName || "Creator"}
             </div>
-            <div className="text-[11px] text-[#5A6F65] truncate">
-              {user?.email || ""}
+            <div className="text-[10px] font-mono text-brand uppercase tracking-wider font-semibold">
+              Pro Creator
             </div>
           </div>
           <button 
             onClick={() => logout()}
-            className="p-2 text-[#5A6F65] hover:text-red-400 transition-colors rounded-lg hover:bg-red-400/10 group/logout relative"
+            className="p-2 text-[#5A6F65] hover:text-red-400 transition-colors rounded-xl hover:bg-red-400/10 group/logout relative"
             title="Logout"
           >
             <LogOut className="w-4 h-4" />
-            <span className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded opacity-0 group-hover/logout:opacity-100 transition-opacity whitespace-nowrap border border-white/10 pointer-events-none">
+            <span className="absolute bottom-full mb-2 right-0 px-2 py-1 bg-zinc-900 text-white text-[10px] rounded opacity-0 group-hover/logout:opacity-100 transition-opacity whitespace-nowrap border border-white/10 pointer-events-none">
               Logout
             </span>
           </button>

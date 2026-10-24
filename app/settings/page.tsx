@@ -180,25 +180,30 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-4xl mx-auto py-12 px-6 space-y-12">
-        <div className="space-y-3">
-          <h1 className="text-[44px] font-black tracking-tight text-white flex items-center gap-4">
-            <Settings className="w-10 h-10 text-brand" />
-            Settings
+      <div className="max-w-4xl mx-auto py-10 px-4 sm:px-6 space-y-10">
+        <div className="space-y-3 border-b border-white/[0.04] pb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/[0.08] border border-brand/20 text-brand text-[11px] font-mono font-bold tracking-[0.16em] uppercase">
+            <Settings className="w-3.5 h-3.5 fill-brand" />
+            STUDIO SETTINGS & SECURITY
+          </div>
+          <h1 className="text-[34px] sm:text-[44px] font-black tracking-tight text-white leading-tight">
+            Creator <span className="text-gradient-brand">Settings</span>
           </h1>
-          <p className="text-[#5A6F65] text-lg font-medium">Manage your account preferences and security.</p>
+          <p className="text-[#8E9F97] text-sm sm:text-base font-normal">
+            Manage your creator profile, security credentials, and workspace preferences.
+          </p>
         </div>
 
         {/* Profile Section */}
-        <section className="bg-[#0E1512] border border-white/5 rounded-[32px] overflow-hidden">
-          <div className="p-8 border-b border-white/5 bg-white/[0.01]">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand/10 flex items-center justify-center text-brand">
+        <section className="bg-[#0B100E] border border-white/8 rounded-[28px] overflow-hidden shadow-sm">
+          <div className="p-6 sm:p-8 border-b border-white/5 bg-white/[0.01]">
+            <div className="flex items-center gap-3.5">
+              <div className="w-10 h-10 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
                 <Settings className="w-5 h-5" />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-white">Profile</h2>
-                <p className="text-sm text-[#5A6F65]">Update your public information and profile picture.</p>
+                <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight">Public Profile</h2>
+                <p className="text-xs sm:text-sm text-[#7D8F86]">Update your creator handle, display name and avatar.</p>
               </div>
             </div>
           </div>

@@ -104,13 +104,19 @@ export default function PlatformsContent() {
       )}
       {/* Top Navigation Bar removed */}
 
-      <div className="px-4 sm:px-6 lg:px-10 py-12 space-y-16 max-w-[1400px] mx-auto w-full">
+      <div className="px-4 sm:px-6 lg:px-10 py-10 space-y-12 max-w-[1400px] mx-auto w-full">
         {/* Header */}
-        <div className="space-y-3">
-          <h1 className="text-[44px] sm:text-[56px] font-black tracking-tight text-white leading-tight">
-            Connect <span className="text-brand">Accounts</span>
+        <div className="space-y-3 border-b border-white/[0.04] pb-8">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/[0.08] border border-brand/20 text-brand text-[11px] font-mono font-bold tracking-[0.16em] uppercase">
+            <Share2 className="w-3.5 h-3.5 fill-brand" />
+            INTEGRATION HUB • 1-CLICK SYNC
+          </div>
+          <h1 className="text-[36px] sm:text-[46px] font-black tracking-tight text-white leading-tight">
+            Connect <span className="text-gradient-brand">Accounts</span>
           </h1>
-          <p className="text-[#5A6F65] text-[16px] sm:text-[18px] max-w-2xl font-medium leading-relaxed">Link your social media and Web3 wallets to start generating AI-powered clips and earning rewards automatically.</p>
+          <p className="text-[#8E9F97] text-[15px] sm:text-[16px] max-w-2xl font-normal leading-relaxed">
+            Link your social channels and Stellar Web3 wallet to syndicate AI-rendered clips and receive autonomous micro-tips automatically.
+          </p>
         </div>
 
         {/* Social Platforms */}
@@ -122,7 +128,7 @@ export default function PlatformsContent() {
           />
           {loading ? (
             <div className="flex justify-center py-20">
-              <Loader2 className="w-10 h-10 text-brand animate-spin" />
+              <Loader2 className="w-8 h-8 text-brand animate-spin" />
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
@@ -173,42 +179,41 @@ export default function PlatformsContent() {
             icon={Wallet} 
             label={address ? "1 CONNECTED" : "REWARDS DESTINATION"}
           />
-          <div className="bg-[#111111]/40 backdrop-blur-md border border-white/[0.03] rounded-[24px] p-6 flex items-center justify-between group hover:border-brand/20 transition-all duration-300 relative overflow-hidden">
-            {/* subtle glow when connected */}
+          <div className="bg-[#0B100E] border border-white/8 rounded-[28px] p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 group hover:border-brand/25 transition-all duration-300 relative overflow-hidden shadow-sm">
             {address && (
-              <div className="absolute inset-0 bg-brand/[0.03] pointer-events-none" />
+              <div className="absolute inset-0 bg-brand/[0.02] pointer-events-none" />
             )}
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-2xl bg-brand/10 flex items-center justify-center">
-                <Wallet className="w-6 h-6 text-brand" />
+              <div className="w-12 h-12 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+                <Wallet className="w-6 h-6" />
               </div>
               <div>
-                <p className="font-bold text-white text-[15px]">Stellar Wallet</p>
+                <p className="font-black text-white text-[15px] tracking-tight">Stellar Blockchain Wallet</p>
                 {address ? (
-                  <p className="text-xs text-brand font-mono mt-0.5">
+                  <p className="text-xs text-brand font-mono font-bold mt-0.5">
                     {address.slice(0, 8)}…{address.slice(-6)}
                   </p>
                 ) : (
-                  <p className="text-xs text-[#5A6F65] mt-0.5">Freighter · xBull · Lobstr · Albedo</p>
+                  <p className="text-xs text-[#7D8F86] mt-0.5 font-medium">Freighter · xBull · Lobstr · Albedo</p>
                 )}
               </div>
             </div>
             <div className="flex items-center gap-3">
               {address ? (
                 <>
-                  <div className="flex items-center gap-1.5 text-brand text-xs font-bold">
+                  <div className="flex items-center gap-1.5 text-brand text-xs font-mono font-bold">
                     <CheckCircle2 className="w-4 h-4" />
-                    CONNECTED
+                    <span>CONNECTED</span>
                   </div>
                   <button
                     onClick={disconnect}
-                    className="text-xs text-[#5A6F65] hover:text-red-400 transition-colors font-medium border border-white/5 hover:border-red-400/30 px-3 py-1.5 rounded-xl"
+                    className="text-xs text-[#8E9F97] hover:text-red-400 transition-colors font-mono font-bold border border-white/10 hover:border-red-400/30 px-3.5 py-2 rounded-xl bg-white/[0.02] cursor-pointer"
                   >
                     Disconnect
                   </button>
                 </>
               ) : (
-                <WalletButton className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand/10 border border-brand/20 text-brand hover:bg-brand/20 transition-all font-bold text-sm disabled:opacity-60" />
+                <WalletButton className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-black transition-all font-black text-xs shadow-[0_0_15px_rgba(0,229,143,0.2)] disabled:opacity-60 cursor-pointer" />
               )}
             </div>
           </div>

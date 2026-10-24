@@ -1,12 +1,24 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { AuthProvider } from "@/components/AuthProvider";
 import QueryProvider from "@/components/QueryProvider";
 import { WalletProvider } from "@/components/WalletProvider";
 import { ToastProvider } from "@/components/shared/ToastProvider";
 
-const inter = Inter({ subsets: ["latin"] });
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+  display: "swap",
+  weight: ["300", "400", "500", "600", "700", "800"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+  weight: ["400", "500", "600", "700"],
+});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://enclips.ai"),
@@ -15,13 +27,13 @@ export const metadata: Metadata = {
     shortcut: "/logo.jpeg",
     apple: "/logo.jpeg",
   },
-  title: "enclips - AI Clipping",
-  description: "Turn 1 long video into 100+ viral clips. Preview, pick, post & mint.",
-  keywords: ["enclips", "AI clipping", "viral videos", "video editing", "content creation", "SaaS", "video shorts"],
-  authors: [{ name: "enclips Team" }],
+  title: "enclips — Turn Long Videos Into 100+ Viral Clips With AI",
+  description: "Autonomous AI clipping engine. Find high-retention moments, auto-reframe to 9:16, dynamic karaoke captions & on-chain Web3 creator monetization on Stellar.",
+  keywords: ["enclips", "AI clipping", "viral videos", "video editing", "content creation", "SaaS", "video shorts", "TikTok clips", "Reels automation", "Stellar"],
+  authors: [{ name: "enclips AI Team" }],
   openGraph: {
-    title: "enclips - AI Clipping",
-    description: "Turn 1 long video into 100+ viral clips. Preview, pick, post & mint.",
+    title: "enclips — Turn Long Videos Into 100+ Viral Clips With AI",
+    description: "Autonomous AI clipping engine. Find high-retention moments, auto-reframe to 9:16, dynamic karaoke captions & on-chain Web3 creator monetization.",
     url: "https://enclips.ai",
     siteName: "enclips",
     images: [
@@ -37,8 +49,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "enclips - AI Clipping",
-    description: "Turn 1 long video into 100+ viral clips. Preview, pick, post & mint.",
+    title: "enclips — Turn Long Videos Into 100+ Viral Clips With AI",
+    description: "Autonomous AI clipping engine. Find high-retention moments, auto-reframe to 9:16, dynamic karaoke captions & on-chain Web3 creator monetization.",
     images: ["/logo.jpeg"],
   },
   robots: {
@@ -53,14 +65,17 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body className={inter.className} suppressHydrationWarning>
+    <html lang="en" suppressHydrationWarning className={`${plusJakarta.variable} ${jetbrainsMono.variable}`}>
+      <body className="font-sans bg-[#060908] text-[#F4F4F5] antialiased selection:bg-[#00E58F]/30 selection:text-[#00E58F] min-h-screen relative overflow-x-hidden" suppressHydrationWarning>
         <div className="radial-bg" />
+        <div className="fixed inset-0 grid-pattern pointer-events-none opacity-40 z-0" />
         <QueryProvider>
           <WalletProvider>
             <AuthProvider>
               <ToastProvider>
-                {children}
+                <div className="relative z-10 flex flex-col min-h-screen">
+                  {children}
+                </div>
               </ToastProvider>
             </AuthProvider>
           </WalletProvider>

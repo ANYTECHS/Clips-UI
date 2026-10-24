@@ -178,38 +178,45 @@ export default function CreateClipsForm() {
   };
 
   return (
-    <div className="w-full bg-[#080C0B]/80 backdrop-blur-3xl border border-brand/20 rounded-[32px] p-6 sm:p-10 shadow-[0_0_100px_rgba(0,229,143,0.03),inset_0_0_20px_rgba(0,229,143,0.05)] relative overflow-hidden group">
-      <div className="absolute -top-24 -right-24 w-48 h-48 bg-brand/5 blur-[80px] rounded-full pointer-events-none group-hover:bg-brand/10 transition-all duration-700" />
+    <div className="w-full bg-[#0C120F]/90 backdrop-blur-2xl border border-white/10 rounded-[32px] p-6 sm:p-10 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.8)] glow-border relative overflow-hidden group">
+      <div className="absolute -top-24 -right-24 w-60 h-60 bg-brand/10 blur-[80px] rounded-full pointer-events-none group-hover:bg-brand/15 transition-all duration-700" />
 
-      <div className="space-y-8">
+      <div className="space-y-8 relative z-10">
 
         {/* ── URL import ── */}
-        <div className="space-y-4">
-          <label className="text-[13px] font-bold text-[#5A6F65] uppercase tracking-wider block ml-1">
-            Import from URL
+        <div className="space-y-3">
+          <label className="text-[11px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.16em] block ml-1">
+            Import from URL (YouTube, TikTok, Vimeo)
           </label>
 
-          <div className="relative flex items-center group/input">
-            <div className="absolute left-6 text-[#3A4A43] group-focus-within/input:text-brand transition-colors">
-              <LinkIcon className="w-5 h-5" />
+          <div className="relative flex flex-col sm:flex-row items-stretch gap-2.5 group/input">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-4 flex items-center pointer-events-none text-[#5A6F65] group-focus-within/input:text-brand transition-colors">
+                <LinkIcon className="w-4 h-4" />
+              </div>
+              <input
+                type="text"
+                value={urlValue}
+                onChange={(e) => { setUrlValue(e.target.value); setError(""); resetYouTube(); }}
+                onKeyDown={(e) => e.key === "Enter" && handleFetchUrl()}
+                disabled={anyBusy}
+                placeholder="Paste YouTube, TikTok or Vimeo link here…"
+                className="w-full h-13 bg-[#080D0B] border border-white/10 focus:border-brand/70 focus:ring-1 focus:ring-brand/30 rounded-2xl pl-11 pr-4 text-[14px] font-medium placeholder-[#5A6F65] text-white transition-all outline-none disabled:opacity-50"
+              />
             </div>
-            <input
-              type="text"
-              value={urlValue}
-              onChange={(e) => { setUrlValue(e.target.value); setError(""); resetYouTube(); }}
-              onKeyDown={(e) => e.key === "Enter" && handleFetchUrl()}
-              disabled={anyBusy}
-              placeholder="Paste YouTube, TikTok or Vimeo link here…"
-              className="w-full h-14 bg-[#0B100E] border border-white/[0.03] focus:border-brand/40 focus:ring-4 focus:ring-brand/5 rounded-2xl pl-16 pr-44 text-[14px] font-medium placeholder-[#3A4A43] text-white transition-all outline-none disabled:opacity-50"
-            />
             <button
               onClick={handleFetchUrl}
               disabled={anyBusy || !urlValue.trim()}
-              className="absolute right-2 px-6 py-3 bg-brand hover:bg-brand-hover text-black font-bold rounded-xl text-[14px] transition-all active:scale-[0.98] shadow-[0_4px_20px_rgba(0,229,143,0.2)] disabled:opacity-50 disabled:cursor-not-allowed"
+              className="px-7 py-3.5 bg-brand hover:bg-brand-hover text-black font-black rounded-2xl text-[14px] transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(0,229,143,0.25)] hover:shadow-[0_0_30px_rgba(0,229,143,0.4)] disabled:opacity-50 disabled:cursor-not-allowed shrink-0 flex items-center justify-center gap-2 cursor-pointer"
             >
-              {anyBusy
-                ? <Loader2 className="w-5 h-5 animate-spin" />
-                : "Fetch Video"}
+              {anyBusy ? (
+                <Loader2 className="w-4 h-4 animate-spin text-black" />
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 fill-black" />
+                  <span>Fetch Video</span>
+                </>
+              )}
             </button>
           </div>
 
@@ -265,10 +272,10 @@ export default function CreateClipsForm() {
         </div>
 
         {/* ── Divider ── */}
-        <div className="relative flex items-center justify-center py-2">
-          <div className="absolute left-0 right-0 h-px bg-white/[0.03]" />
-          <span className="relative z-10 px-6 bg-[#080C0B] text-[12px] font-black text-[#2A3B34] uppercase tracking-[0.2em]">
-            OR
+        <div className="relative flex items-center justify-center py-1">
+          <div className="absolute left-0 right-0 h-px bg-white/5" />
+          <span className="relative z-10 px-5 bg-[#0C120F] text-[10px] font-mono font-bold text-[#5A6F65] uppercase tracking-[0.2em]">
+            OR DROP RAW FOOTAGE
           </span>
         </div>
 
@@ -278,21 +285,21 @@ export default function CreateClipsForm() {
           onClick={() => { if (!anyBusy) fileInputRef.current?.click(); }}
         >
           <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept="video/*" />
-          <div className="w-full aspect-[21/9] sm:aspect-[4.5/1] border-2 border-dashed border-white/5 group-hover/upload:border-brand/20 rounded-[24px] bg-white/[0.01] group-hover/upload:bg-brand/[0.01] flex flex-col items-center justify-center gap-4 transition-all duration-500 overflow-hidden">
-            <div className="w-14 h-14 rounded-2xl bg-[#0B100E] border border-white/5 flex items-center justify-center group-hover/upload:scale-110 group-hover/upload:border-brand/20 transition-all duration-500 relative">
+          <div className="w-full aspect-[21/9] sm:aspect-[4.5/1] border-2 border-dashed border-white/10 group-hover/upload:border-brand/40 rounded-[24px] bg-white/[0.01] group-hover/upload:bg-brand/[0.02] flex flex-col items-center justify-center gap-3 transition-all duration-300 overflow-hidden p-6">
+            <div className="w-12 h-12 rounded-2xl bg-[#080D0B] border border-white/10 flex items-center justify-center group-hover/upload:scale-110 group-hover/upload:border-brand/30 transition-all duration-300 relative">
               <div className="absolute inset-0 bg-brand/5 blur-xl group-hover/upload:bg-brand/10 transition-colors rounded-full" />
               {selectedFile
-                ? <Check  className="w-6 h-6 text-brand relative z-10" />
-                : <Upload className="w-6 h-6 text-[#5A6F65] group-hover/upload:text-brand relative z-10" />}
+                ? <Check className="w-5 h-5 text-brand relative z-10" />
+                : <Upload className="w-5 h-5 text-[#8E9F97] group-hover/upload:text-brand relative z-10" />}
             </div>
             <div className="text-center space-y-1 relative z-10">
-              <p className="text-[16px] font-bold text-white group-hover/upload:text-brand transition-colors">
-                {selectedFile ? selectedFile.name : "Click to upload or drag and drop"}
+              <p className="text-[15px] font-bold text-white group-hover/upload:text-brand transition-colors">
+                {selectedFile ? selectedFile.name : "Click to select video or drag & drop"}
               </p>
-              <p className="text-[12px] font-medium text-[#3A4A43]">
+              <p className="text-[11px] font-mono text-[#5A6F65]">
                 {selectedFile
-                  ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB — ready to upload`
-                  : "MP4, MOV, WEBM up to 2GB"}
+                  ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for processing`
+                  : "Supports MP4, MOV, WEBM, MKV up to 500MB"}
               </p>
             </div>
           </div>
@@ -325,65 +332,63 @@ export default function CreateClipsForm() {
         )}
 
         {/* ── Platform + toggle ── */}
-        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
-          <div className="space-y-4 flex-1">
-            <label className="text-[13px] font-bold text-[#5A6F65] uppercase tracking-wider block ml-1">
-              Target Platforms
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pt-2">
+          <div className="space-y-3 flex-1">
+            <label className="text-[11px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.16em] block ml-1">
+              Target Output Format
             </label>
-            <div className="flex flex-wrap gap-3">
+            <div className="flex flex-wrap gap-2.5">
               {platforms.map((platform) => (
                 <button
                   key={platform.name}
                   onClick={() => setActivePlatform(platform.name)}
-                  className={`px-5 py-2.5 rounded-full border text-[13px] font-bold flex items-center gap-2 transition-all duration-300 ${
+                  className={`px-4.5 py-2.5 rounded-full border text-[13px] font-bold flex items-center gap-2 transition-all duration-200 cursor-pointer ${
                     activePlatform === platform.name
-                      ? "bg-brand/10 border-brand text-brand shadow-[0_0_15px_rgba(0,229,143,0.15)]"
-                      : "bg-[#0B100E] border-white/5 text-[#5A6F65] hover:text-white hover:border-white/10"
+                      ? "bg-brand/10 border-brand/50 text-brand shadow-[0_0_15px_rgba(0,229,143,0.15)]"
+                      : "bg-[#080D0B] border-white/5 text-[#8E9F97] hover:text-white hover:border-white/15"
                   }`}
                 >
-                  <span className={activePlatform === platform.name ? "opacity-100" : "opacity-40 grayscale"}>
-                    {platform.icon}
-                  </span>
-                  {platform.name}
-                  {activePlatform === platform.name && <Check className="w-3.5 h-3.5 ml-1" />}
+                  <span>{platform.icon}</span>
+                  <span>{platform.name}</span>
+                  {activePlatform === platform.name && <Check className="w-3.5 h-3.5 text-brand ml-0.5" />}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className="bg-[#0B100E]/50 border border-white/5 rounded-[24px] p-6 lg:min-w-[320px] flex items-center justify-between group/toggle hover:border-brand/20 transition-all">
-            <div className="space-y-1">
-              <p className="text-[14px] font-bold text-white group-hover/toggle:text-brand transition-colors">
-                Auto-generate clips
+          <div className="bg-[#080D0B] border border-white/5 rounded-2xl p-4 sm:p-5 lg:min-w-[320px] flex items-center justify-between group/toggle hover:border-brand/20 transition-all">
+            <div className="space-y-0.5">
+              <p className="text-[13.5px] font-bold text-white group-hover/toggle:text-brand transition-colors">
+                Autonomous Viral Clipping
               </p>
-              <p className="text-[11px] font-medium text-[#5A6F65]">Extract 50–200 viral moments</p>
+              <p className="text-[11px] text-[#5A6F65]">Auto-extract 30s–60s retention spikes</p>
             </div>
             <button
               onClick={() => setAutoGenerate(!autoGenerate)}
-              className={`w-12 h-6 rounded-full relative transition-all duration-300 ${autoGenerate ? "bg-brand" : "bg-[#1A221E]"}`}
+              className={`w-12 h-6 rounded-full relative transition-all duration-300 cursor-pointer ${autoGenerate ? "bg-brand" : "bg-[#1A221E]"}`}
             >
-              <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all duration-300 ${autoGenerate ? "left-7" : "left-1"}`} />
+              <div className={`absolute top-1 w-4 h-4 rounded-full bg-black transition-all duration-300 ${autoGenerate ? "left-7" : "left-1"}`} />
             </button>
           </div>
         </div>
 
         {/* ── Footer action row ── */}
-        <div className="pt-6 border-t border-white/[0.03] flex flex-col sm:flex-row items-center justify-between gap-6">
-          <div className="flex items-center gap-2.5 text-[#5A6F65]">
-            <Info className="w-4 h-4" />
-            <span className="text-[13px] font-medium tracking-tight">
-              Estimated processing time: <span className="text-white">4–6 minutes</span>
+        <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center justify-between gap-6">
+          <div className="flex items-center gap-2.5 px-3.5 py-1.5 rounded-full bg-white/[0.02] border border-white/5 text-[12px] font-mono text-[#8E9F97]">
+            <Info className="w-3.5 h-3.5 text-brand shrink-0" />
+            <span>
+              Estimated processing time: <strong className="text-white font-bold">2–4 minutes</strong>
             </span>
           </div>
 
           <button
             onClick={handleUploadAndGenerate}
             disabled={anyBusy || !selectedFile}
-            className={`w-full sm:w-auto px-10 py-4 rounded-2xl text-[16px] font-black flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed ${
+            className={`w-full sm:w-auto px-10 py-4 rounded-2xl text-[15px] font-black flex items-center justify-center gap-2.5 transition-all active:scale-[0.98] disabled:cursor-not-allowed cursor-pointer ${
               uploadState === "ready"
-                ? "bg-brand hover:bg-brand-hover text-black shadow-[0_0_30px_rgba(0,229,143,0.3)] hover:shadow-[0_0_40px_rgba(0,229,143,0.5)]"
+                ? "bg-brand hover:bg-brand-hover text-black shadow-[0_0_25px_rgba(0,229,143,0.3)] hover:shadow-[0_0_35px_rgba(0,229,143,0.5)]"
                 : uploadState === "idle"
-                ? "bg-[#0B100E] border border-white/10 text-[#5A6F65] opacity-50 cursor-not-allowed"
+                ? "bg-[#080D0B] border border-white/10 text-[#5A6F65] opacity-50 cursor-not-allowed"
                 : "bg-brand text-black opacity-80"
             }`}
           >
