@@ -56,35 +56,36 @@ export default function AgentMarketplaceContent() {
     <div className="px-4 sm:px-6 lg:px-10 py-10 max-w-[1400px] mx-auto w-full space-y-10">
 
       {/* ── Page Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 border-b border-white/[0.04] pb-8">
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6">
         <div className="space-y-3">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/[0.08] border border-brand/20 text-brand text-[11px] font-mono font-bold tracking-[0.16em] uppercase">
-            <Bot className="w-3.5 h-3.5 fill-brand" />
-            ON-CHAIN AUTONOMOUS AGENTS
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-[11px] font-black tracking-widest uppercase">
+            <Bot className="w-3.5 h-3.5" />
+            On-Chain AI Agents
           </div>
-          <h1 className="text-[34px] sm:text-[44px] font-black tracking-tight text-white leading-tight">
-            Agent <span className="text-gradient-brand">Marketplace</span>
+          <h1 className="text-[32px] font-extrabold tracking-tight text-white leading-tight">
+            Agent Marketplace
           </h1>
-          <p className="text-[#8E9F97] text-[15px] font-normal max-w-lg leading-relaxed">
-            Hire specialized autonomous AI agents to edit and syndicate your videos. Pay $0.50 USDC per job or unlock unlimited access via Stellar subscriptions.
+          <p className="text-[#5A6F65] text-[15px] font-medium max-w-lg leading-relaxed">
+            Hire hireable AI agents to clip your videos. Pay $0.50 USDC per job or subscribe for
+            unlimited jobs — all settled on the Stellar network.
           </p>
         </div>
 
         {/* Stats strip */}
         <div className="flex items-center gap-3 shrink-0">
-          <div className="bg-[#0B100E] border border-white/8 rounded-2xl px-5 py-3 text-center shadow-sm">
-            <p className="text-[28px] font-black text-white font-mono leading-none tracking-tight tabular-nums">{agents.length}</p>
-            <p className="text-[10px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.14em] mt-1.5">Registered</p>
+          <div className="bg-[#0B100E] border border-white/5 rounded-2xl px-5 py-3 text-center">
+            <p className="text-[26px] font-black text-white leading-none">{agents.length}</p>
+            <p className="text-[10px] font-bold text-[#5A6F65] uppercase tracking-widest mt-1">Agents</p>
           </div>
-          <div className="bg-[#0B100E] border border-white/8 rounded-2xl px-5 py-3 text-center shadow-sm">
-            <p className="text-[28px] font-black text-brand font-mono leading-none tracking-tight tabular-nums">$0.50</p>
-            <p className="text-[10px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.14em] mt-1.5">USDC Job</p>
+          <div className="bg-[#0B100E] border border-white/5 rounded-2xl px-5 py-3 text-center">
+            <p className="text-[26px] font-black text-brand leading-none">$0.50</p>
+            <p className="text-[10px] font-bold text-[#5A6F65] uppercase tracking-widest mt-1">Per Job</p>
           </div>
-          <div className="bg-[#0B100E] border border-white/8 rounded-2xl px-5 py-3 text-center shadow-sm">
-            <p className={`text-[28px] font-black font-mono leading-none tracking-tight tabular-nums ${hasActiveSub ? "text-brand" : "text-[#4A5D54]"}`}>
-              {hasActiveSub ? subscription!.plan : "FREE"}
+          <div className="bg-[#0B100E] border border-white/5 rounded-2xl px-5 py-3 text-center">
+            <p className={`text-[26px] font-black leading-none ${hasActiveSub ? "text-brand" : "text-[#3A4A43]"}`}>
+              {hasActiveSub ? subscription!.plan : "—"}
             </p>
-            <p className="text-[10px] font-mono font-bold text-[#8E9F97] uppercase tracking-[0.14em] mt-1.5">Tier</p>
+            <p className="text-[10px] font-bold text-[#5A6F65] uppercase tracking-widest mt-1">Plan</p>
           </div>
         </div>
       </div>
@@ -95,16 +96,16 @@ export default function AgentMarketplaceContent() {
           <button
             key={key}
             onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-2 px-5 py-3 text-[13px] font-bold border-b-2 -mb-px transition-all cursor-pointer ${
+            className={`flex items-center gap-2 px-5 py-3 text-[13px] font-bold border-b-2 -mb-px transition-all ${
               activeTab === key
-                ? "border-brand text-brand shadow-[inset_0_-2px_10px_rgba(0,229,143,0.15)]"
-                : "border-transparent text-[#7D8F86] hover:text-white"
+                ? "border-brand text-brand"
+                : "border-transparent text-[#5A6F65] hover:text-white"
             }`}
           >
             <Icon className="w-4 h-4" />
-            <span>{label}</span>
+            {label}
             {key === "jobs" && latestJobId && (
-              <span className="px-1.5 py-0.5 rounded-md bg-brand/20 text-brand text-[9px] font-mono font-black">NEW</span>
+              <span className="px-1.5 py-0.5 rounded-md bg-brand/20 text-brand text-[9px] font-black">NEW</span>
             )}
           </button>
         ))}

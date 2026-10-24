@@ -158,7 +158,7 @@ export default function AIClipCard({
   title,
   thumbnail,
   clipUrl,
-  score,
+  score: _score,
   scoreKey: _scoreKey,
   duration,
   platform,
@@ -242,17 +242,17 @@ export default function AIClipCard({
       )}
 
       <div
-        className={`group relative bg-[#0B100E] border rounded-[24px] overflow-hidden transition-all duration-300 ${
+        className={`group relative bg-[#0B100E] border rounded-[24px] overflow-hidden transition-all duration-500 ${
           hovered
-            ? "border-brand/40 shadow-[0_15px_35px_-10px_rgba(0,229,143,0.15)] -translate-y-1"
-            : "border-white/8"
+            ? "border-brand/40 shadow-[0_0_40px_rgba(0,229,143,0.08)] -translate-y-0.5"
+            : "border-white/5"
         }`}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
         {/* Thumbnail */}
         <div
-          className={`relative aspect-[16/10] overflow-hidden bg-[#060A08] ${clipUrl ? "cursor-pointer" : ""}`}
+          className={`relative aspect-video overflow-hidden bg-[#060A08] ${clipUrl ? "cursor-pointer" : ""}`}
           onClick={() => clipUrl && setShowPreview(true)}
         >
           <Image
@@ -260,18 +260,11 @@ export default function AIClipCard({
             alt={title}
             fill
             sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-            className={`object-cover transition-transform duration-500 ${hovered ? "scale-105" : "scale-100"}`}
+            className={`object-cover transition-transform duration-700 ${hovered ? "scale-105" : "scale-100"}`}
             onError={() => setImgSrc(FALLBACK)}
           />
 
-          {/* Viral Score Badge */}
-          <div className="absolute top-2.5 left-2.5 px-2 py-0.5 rounded-lg bg-black/75 backdrop-blur-md border border-brand/30 text-[10px] font-mono font-black text-brand z-10 flex items-center gap-1 shadow-md">
-            <span className="w-1.5 h-1.5 rounded-full bg-brand animate-pulse" />
-            <span>{score}/100</span>
-          </div>
-
-          {/* Duration tag */}
-          <div className="absolute top-2.5 right-2.5 px-2 py-0.5 rounded-lg bg-black/75 backdrop-blur-md border border-white/10 text-[10px] font-mono font-bold text-white z-10 shadow-md">
+          <div className="absolute bottom-2.5 right-3 px-1.5 py-0.5 rounded-md bg-black/80 text-[9px] font-black text-white z-10">
             {duration}
           </div>
 
@@ -282,14 +275,14 @@ export default function AIClipCard({
                 : "opacity-0"
             }`}
           >
-            <div className="w-11 h-11 rounded-full bg-brand/20 border border-brand/40 flex items-center justify-center backdrop-blur-xl shadow-lg">
-              <Play className="w-4 h-4 text-brand fill-brand ml-0.5" />
+            <div className="w-12 h-12 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl">
+              <Play className="w-5 h-5 text-white fill-white ml-0.5" />
             </div>
           </div>
 
           {!clipUrl && (
-            <div className="absolute inset-0 flex items-center justify-center bg-black/50 z-10">
-              <p className="text-[#8E9F97] text-[11px] font-medium">No preview available</p>
+            <div className="absolute inset-0 flex items-center justify-center bg-black/40 z-10">
+              <p className="text-[#5A6F65] text-[11px] font-medium">No preview</p>
             </div>
           )}
         </div>

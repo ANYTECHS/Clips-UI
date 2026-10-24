@@ -211,32 +211,32 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
   return (
     <div
       id="auth-card"
-      className="w-full max-w-[440px] mx-auto bg-[#0C120F]/90 backdrop-blur-2xl rounded-[28px] p-6 sm:p-9 shadow-[0_30px_70px_-20px_rgba(0,0,0,0.8)] border border-white/10 relative overflow-hidden glow-border"
+      className="w-full max-w-[440px] mx-auto bg-[#0E1512]/90 backdrop-blur-md rounded-[20px] p-6 sm:p-[38px] shadow-[0_4px_40px_rgba(0,0,0,0.5)] border border-[#1E2A24] relative overflow-hidden"
     >
-      <div className="absolute -top-24 -right-24 w-60 h-60 bg-brand/10 rounded-full blur-[70px] pointer-events-none" />
+      <div className="absolute -top-24 -right-24 w-60 h-60 bg-brand/10 rounded-full blur-[60px] pointer-events-none" />
 
-      <h2 className="text-[24px] sm:text-[28px] text-white font-black tracking-tight mb-1">
+      <h2 className="text-[24px] sm:text-[28px] text-white font-bold tracking-tight mb-1">
         {currentMode === "login" ? "Welcome back" : "Create an account"}
       </h2>
-      <p className="text-[#8E9F97] mb-6 sm:mb-8 text-[13px] sm:text-[14px]">
+      <p className="text-[#8e9895] mb-6 sm:mb-8 text-[14px] sm:text-[15px]">
         {currentMode === "login"
-          ? "Log in to access your video projects & AI clips"
-          : "Sign up in seconds to start clipping viral moments"}
+          ? "Log in to start creating viral content"
+          : "Sign up to start creating viral content"}
       </p>
 
       {showWallet && (
         <>
-          <div className="mb-6 sm:mb-7">
+          <div className="mb-6 sm:mb-8">
             <WalletButton
               onConnect={handleWalletConnect}
-              className="w-full flex items-center justify-center gap-3 bg-brand/[0.08] hover:bg-brand/15 border border-brand/25 text-brand py-3.5 rounded-xl font-bold transition-all text-[13.5px] shadow-[0_0_15px_rgba(0,229,143,0.1)] hover:shadow-[0_0_25px_rgba(0,229,143,0.2)]"
+              className="w-full flex items-center justify-center gap-3 bg-brand/5 hover:bg-brand/10 border border-brand/20 text-brand py-3.5 rounded-[12px] font-medium transition-all text-[14px]"
             />
           </div>
 
-          <div className="flex items-center gap-4 text-[#4A5D54] text-[10px] font-mono font-bold tracking-[0.15em] uppercase mb-6 sm:mb-7">
-            <div className="flex-1 h-px bg-white/10" />
-            OR CONTINUE WITH EMAIL
-            <div className="flex-1 h-px bg-white/10" />
+          <div className="flex items-center gap-4 text-[#4A5D54] text-[11px] font-bold tracking-[0.1em] uppercase mb-6 sm:mb-8">
+            <div className="flex-1 h-px bg-[#1E2A24]" />
+            OR EMAIL
+            <div className="flex-1 h-px bg-[#1E2A24]" />
           </div>
         </>
       )}
@@ -244,7 +244,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
       <form onSubmit={handleEmailSubmit} className="space-y-4">
         {currentMode === "signup" && (
           <div>
-            <label className="block text-[12px] font-bold text-[#8E9F97] uppercase tracking-wider mb-2">
+            <label className="block text-[13px] font-medium text-[#8e9895] mb-2">
               Full Name
             </label>
             <input
@@ -252,13 +252,13 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
               required
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Alex Rivera"
-              className="w-full bg-[#080D0B] border border-white/10 text-white focus:border-brand/70 focus:ring-1 focus:ring-brand/30 rounded-xl px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#0E1512] transition-all placeholder-[#4A5D54]"
+              placeholder="Your full name"
+              className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors"
             />
           </div>
         )}
         <div>
-          <label className="block text-[12px] font-bold text-[#8E9F97] uppercase tracking-wider mb-2">
+          <label className="block text-[13px] font-medium text-[#8e9895] mb-2">
             Email address
           </label>
           <input
@@ -272,11 +272,11 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
               setIsUnverified(false);
             }}
             placeholder="name@company.com"
-            className="w-full bg-[#080D0B] border border-white/10 text-white focus:border-brand/70 focus:ring-1 focus:ring-brand/30 rounded-xl px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#0E1512] transition-all placeholder-[#4A5D54]"
+            className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5D54]"
           />
         </div>
         <div>
-          <label className="block text-[12px] font-bold text-[#8E9F97] uppercase tracking-wider mb-2">
+          <label className="block text-[13px] font-medium text-[#8e9895] mb-2">
             Password
           </label>
           <div className="relative">
@@ -291,13 +291,13 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
                 setIsUnverified(false);
               }}
               placeholder="••••••••"
-              className="w-full bg-[#080D0B] border border-white/10 text-white focus:border-brand/70 focus:ring-1 focus:ring-brand/30 rounded-xl pl-4 pr-11 py-3.5 text-[14px] focus:outline-none focus:bg-[#0E1512] transition-all placeholder-[#4A5D54]"
+              className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] pl-4 pr-11 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5D54]"
             />
             <button
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               aria-label={showPassword ? "Hide password" : "Show password"}
-              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#7D8F86] hover:text-white transition-colors p-1"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[#8e9895] hover:text-white transition-colors p-1"
             >
               {showPassword ? (
                 <EyeOff className="w-4 h-4" />
@@ -310,7 +310,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
 
         {error && (
           <div className="space-y-2 pt-1 text-center">
-            <div className="text-[12.5px] text-red-400 font-medium">
+            <div className="text-[13px] text-red-400">
               {error}
             </div>
             {isUnverified && (
@@ -322,7 +322,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
                     setPendingVerificationEmail(targetEmail);
                     setShowVerificationModal(true);
                   }}
-                  className="text-[12px] text-brand hover:underline font-bold inline-flex items-center gap-1.5 bg-brand/10 hover:bg-brand/15 px-3.5 py-1.5 rounded-lg border border-brand/20 transition-all"
+                  className="text-[12.5px] text-brand hover:underline font-semibold inline-flex items-center gap-1.5 bg-brand/10 hover:bg-brand/15 px-3 py-1.5 rounded-lg border border-brand/20 transition-all"
                 >
                   <span>Enter verification code or resend OTP</span>
                   <span>→</span>
@@ -333,7 +333,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
         )}
 
         {info && (
-          <div className="text-[12.5px] text-center pt-1 text-brand font-medium">
+          <div className="text-[13px] text-center pt-1 text-brand">
             {info}
           </div>
         )}
@@ -341,7 +341,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-brand hover:bg-brand-hover text-black py-4 rounded-xl font-black text-[14.5px] flex justify-center items-center gap-2 transition-all disabled:opacity-60 shadow-[0_0_20px_rgba(0,229,143,0.25)] hover:shadow-[0_0_30px_rgba(0,229,143,0.4)] active:scale-[0.98] mt-2 cursor-pointer"
+          className="w-full bg-brand hover:bg-brand-hover text-black py-[15px] rounded-[12px] font-bold text-[15px] flex justify-center items-center gap-2 transition-all disabled:opacity-70 mt-[6px]"
         >
           {loading ? (
             <Loader2 className="w-5 h-5 animate-spin text-black" />
@@ -353,14 +353,14 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
         </button>
       </form>
 
-      <div className="text-center mt-6 text-[13px] text-[#7D8F86]">
+      <div className="text-center mt-7 text-[13px] text-[#84908C]">
         {currentMode === "login" ? (
           <>
-            Don&apos;t have an account?{" "}
+            New here?{" "}
             <button
               type="button"
               onClick={() => router.push("/signup")}
-              className="text-brand font-bold hover:underline cursor-pointer"
+              className="text-brand font-medium hover:underline"
             >
               Sign up free
             </button>
@@ -371,7 +371,7 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
             <button
               type="button"
               onClick={() => router.push("/login")}
-              className="text-brand font-bold hover:underline cursor-pointer"
+              className="text-brand font-medium hover:underline"
             >
               Sign in
             </button>

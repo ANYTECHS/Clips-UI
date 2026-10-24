@@ -133,71 +133,48 @@ export default function DashboardContent({ stats: initialStats, projects: initia
           />
         </div>
 
-        {/* Middle Section: Earnings */}
+        {/* Middle Section */}
         <div>
           <EarningsCard />
         </div>
 
         {/* Bottom Section: Recent Projects */}
-        <div className="space-y-6 pt-2">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-white/[0.04] pb-4">
-            <div>
-              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">Recent Projects</h3>
-              <p className="text-xs text-[#7D8F86] mt-0.5">Videos analyzed and clipped by your autonomous engine</p>
-            </div>
-            <div className="text-xs font-mono font-bold text-[#7D8F86] bg-white/[0.03] px-3 py-1 rounded-full border border-white/5 self-start sm:self-auto">
+        <div className="space-y-6 pt-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[20px] font-extrabold text-white tracking-tight">Recent Projects</h3>
+            <div className="text-[13px] text-[#5A6F65] font-medium">
               Showing {allProjects.length} of {data.totalVideos || allProjects.length}
             </div>
           </div>
 
-          {allProjects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center space-y-4 bg-[#0B100E] border border-white/5 rounded-3xl p-8">
-              <div className="w-14 h-14 rounded-2xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand">
-                <Video className="w-7 h-7" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-lg font-bold text-white">No projects yet</p>
-                <p className="text-sm text-[#7D8F86] max-w-sm">
-                  Paste a YouTube, TikTok, or Vimeo link to generate your first batch of viral shorts.
-                </p>
-              </div>
-              <button
-                onClick={() => router.push("/clips")}
-                className="px-6 py-3 rounded-xl bg-brand hover:bg-brand-hover text-black font-extrabold text-sm shadow-[0_0_20px_rgba(0,229,143,0.25)] transition-all active:scale-[0.98]"
-              >
-                Create First Clip
-              </button>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-2">
-              {allProjects.map((project: any, index: number) => (
-                <ProjectCard 
-                  key={project.id || index}
-                  id={project.id}
-                  title={project.title}
-                  clipsCount={project.clipsCount}
-                  status={project.status}
-                  thumbnail={project.thumbnail}
-                  videoUrl={project.videoUrl || project.url || project.cloudinaryUrl || project.sourceUrl}
-                  clips={project.clips}
-                />
-              ))}
-            </div>
-          )}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-2">
+            {allProjects.map((project: any, index: number) => (
+              <ProjectCard 
+                key={project.id || index}
+                id={project.id}
+                title={project.title}
+                clipsCount={project.clipsCount}
+                status={project.status}
+                thumbnail={project.thumbnail}
+                videoUrl={project.videoUrl || project.url || project.cloudinaryUrl || project.sourceUrl}
+                clips={project.clips}
+              />
+            ))}
+          </div>
 
           {hasMore && (
             <div className="flex justify-center pt-8">
               <button 
                 onClick={handleLoadMore}
                 disabled={loadingMore}
-                className="flex items-center gap-2 px-8 py-3.5 bg-[#0E1512] border border-white/10 text-white rounded-xl font-bold hover:bg-[#141E1A] hover:border-brand/30 transition-all disabled:opacity-50 text-sm shadow-sm"
+                className="flex items-center gap-2 px-8 py-3 bg-[#131A17] border border-[#1E2A24] text-white rounded-xl font-bold hover:bg-[#1A221E] transition-all disabled:opacity-50"
               >
                 {loadingMore ? (
-                  <Loader2 className="w-4 h-4 animate-spin text-brand" />
+                  <Loader2 className="w-5 h-5 animate-spin text-brand" />
                 ) : (
                   <>
-                    <span>Load More Projects</span>
-                    <ChevronDown className="w-4 h-4 text-brand" />
+                    Load More Projects
+                    <ChevronDown className="w-5 h-5 text-brand" />
                   </>
                 )}
               </button>
