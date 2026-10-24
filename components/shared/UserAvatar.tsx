@@ -25,6 +25,7 @@ export default function UserAvatar({ user, size = "md", className = "" }: UserAv
         fill
         sizes="(max-width: 768px) 32px, 48px"
         className="object-cover" 
+        unoptimized
       />
     </div>
   );

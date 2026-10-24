@@ -33,8 +33,18 @@ const nextConfig: NextConfig = {
         hostname: "img.youtube.com",
       },
       {
+        // Google OAuth user avatar URLs
         protocol: "https",
-        hostname: "i.ytimg.com",
+        hostname: "lh3.googleusercontent.com",
+      },
+      {
+        protocol: "https",
+        hostname: "*.googleusercontent.com",
+      },
+      {
+        // Backend Render host
+        protocol: "https",
+        hostname: "clipcash-api.onrender.com",
       },
     ],
   },

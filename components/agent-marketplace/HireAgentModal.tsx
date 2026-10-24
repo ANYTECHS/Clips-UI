@@ -7,6 +7,8 @@ import {
   Upload, Film, Check, Sparkles,
 } from "lucide-react";
 import { useWallet } from "@/components/WalletProvider";
+import { useAuth } from "@/components/AuthProvider";
+import WalletButton from "@/components/shared/WalletButton";
 import { useToast } from "@/components/shared/ToastProvider";
 import { signTransaction, submitToStellar, hasUsdcTrustline } from "@/lib/wallet";
 import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
@@ -42,6 +44,7 @@ type Step       = "config" | "uploading" | "payment" | "signing" | "submitting" 
 
 export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAgentModalProps) {
   const { address }   = useWallet();
+  const { user }      = useAuth();
   const { toast }     = useToast();
   const queryClient   = useQueryClient();
   const router        = useRouter();
@@ -282,16 +285,59 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
             <>
               {/* Wallet status */}
               {!address ? (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-yellow-400/8 border border-yellow-400/20">
-                  <Wallet className="w-4 h-4 text-yellow-400 shrink-0" />
-                  <p className="text-[13px] text-yellow-300 font-medium">
-                    Connect your Stellar wallet to hire this agent.
-                  </p>
+                <div className="p-4 rounded-[18px] bg-[#0E1512] border border-amber-400/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)] space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center shrink-0 mt-0.5">
+                      <Wallet className="w-4 h-4 text-amber-400" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[13px] font-bold text-white">Stellar Wallet Required</p>
+                        {user?.email && (
+                          <span
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/5 text-[#8E9895] border border-white/5 truncate max-w-[170px]"
+                            title={user.email}
+                          >
+                            {user.email}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[12px] text-[#8E9895] mt-1 leading-relaxed">
+                        {user?.email
+                          ? "You are signed in with email. Connect or add a Stellar wallet (e.g. Freighter, Lobstr) to pay in USDC and hire this agent."
+                          : "Connect or add a Stellar wallet (e.g. Freighter, Lobstr) to pay in USDC and hire this agent."}
+                      </p>
+                    </div>
+                  </div>
+
+                  <WalletButton
+                    label="Add Wallet to Pay"
+                    linkingLabel="Linking Wallet…"
+                    iconClassName="w-4 h-4 text-black shrink-0"
+                    className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-[14px] bg-brand hover:bg-brand-hover text-black font-extrabold text-[13px] transition-all shadow-[0_0_20px_rgba(0,229,143,0.2)] active:scale-[0.98] disabled:opacity-60 cursor-pointer"
+                  />
                 </div>
               ) : (
-                <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-brand/8 border border-brand/20">
-                  <Wallet className="w-4 h-4 text-brand shrink-0" />
-                  <p className="text-[13px] text-brand font-mono truncate">{address}</p>
+                <div className="flex items-center justify-between p-3.5 rounded-[16px] bg-brand/5 border border-brand/20">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center shrink-0">
+                      <Check className="w-4 h-4 text-brand" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-[10px] font-extrabold text-brand uppercase tracking-wider">Wallet Connected</p>
+                        {user?.email && (
+                          <span className="text-[10px] text-[#5A6F65] truncate">({user.email})</span>
+                        )}
+                      </div>
+                      <p className="text-[12px] text-white font-mono truncate">{address}</p>
+                    </div>
+                  </div>
+                  <WalletButton
+                    compact
+                    connectedLabel="Change"
+                    className="text-[11px] text-[#5A6F65] hover:text-white transition-colors px-2.5 py-1.5 rounded-lg border border-white/5 hover:border-white/10 hover:bg-white/5 shrink-0"
+                  />
                 </div>
               )}
 
@@ -480,7 +526,9 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
                 disabled={!canSubmit}
                 className="w-full py-4 rounded-[16px] bg-brand hover:bg-brand-hover text-black font-bold text-[15px] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(0,229,143,0.15)]"
               >
-                {videoSource === "upload" && selectedFile
+                {!address
+                  ? "Connect Wallet to Hire"
+                  : videoSource === "upload" && selectedFile
                   ? payMode === "pay-per-job"
                     ? "Upload & Pay $0.50 USDC"
                     : hasActiveSub

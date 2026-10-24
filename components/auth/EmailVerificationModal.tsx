@@ -21,6 +21,10 @@ interface EmailVerificationModalProps {
   isOpen: boolean;
   onClose: () => void;
   email: string;
+  signupPayload?: {
+    fullName: string;
+    password: string;
+  };
   onVerified?: () => void;
   onChangeEmail?: () => void;
 }
@@ -29,6 +33,7 @@ export default function EmailVerificationModal({
   isOpen,
   onClose,
   email,
+  signupPayload,
   onVerified,
   onChangeEmail,
 }: EmailVerificationModalProps) {
@@ -156,11 +161,27 @@ export default function EmailVerificationModal({
     setVerifying(true);
 
     try {
-      // Backend expects POST /auths/verify-email with { email, otp }
-      await apiClient.post("/auths/verify-email", {
-        email: targetEmail,
-        otp: cleanToken,
-      });
+      if (signupPayload && signupPayload.fullName && signupPayload.password) {
+        // Step 2 — Verify the 6-digit OTP code before signup
+        await apiClient.post("/auths/verify-otp", {
+          email: targetEmail,
+          otp: cleanToken,
+        });
+
+        // Step 3 — Complete registration after OTP verified
+        await apiClient.post("/auths/signup", {
+          fullName: signupPayload.fullName,
+          email: targetEmail,
+          password: signupPayload.password,
+        });
+      } else {
+        // Existing user email verification flow
+        await apiClient.post("/auths/verify-email", {
+          email: targetEmail,
+          otp: cleanToken,
+        });
+      }
+
       await handleVerificationSuccess();
     } catch (err: any) {
       console.error("Token verification error:", err);
@@ -207,8 +228,12 @@ export default function EmailVerificationModal({
     }
 
     try {
-      await apiClient.post("/auths/resend-verification", { email: target });
-      setResendStatus("A new verification email has been sent! Check your inbox.");
+      if (signupPayload) {
+        await apiClient.post("/auths/send-otp", { email: target });
+      } else {
+        await apiClient.post("/auths/resend-verification", { email: target });
+      }
+      setResendStatus("A new verification code has been sent! Check your inbox.");
       setResendCooldown(60);
     } catch (err: any) {
       const backendMessage = err.response?.data?.message || err.message;

@@ -100,15 +100,20 @@ export default function SettingsPage() {
     setAvatarLoading(true);
     try {
       const formData = new FormData();
-      formData.append('avatar', file);
+      formData.append('file', file);
 
-      const { data } = await apiClient.patch("/users/me/avatar", formData, {
+      const { data } = await apiClient.post("/users/me/avatar", formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
 
-      setUser(data);
+      if (user && data && (data.id || data.picture)) {
+        setUser({ ...user, ...(data.user || data) }, true);
+      } else {
+        const { data: updatedUser } = await apiClient.get("/users/me");
+        setUser(updatedUser, true);
+      }
       toast("Profile picture updated successfully", "success");
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || "Failed to update profile picture";

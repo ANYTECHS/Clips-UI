@@ -265,11 +265,15 @@ export const connectStellarWallet = async (stellarAddress: string, signature: st
 };
 
 export const getConnectWalletChallenge = async (stellarAddress: string) => {
+  // This endpoint returns the NEW structured challenge format with purpose: connect:
+  //   "ClipsCash auth nonce: <uuid>\npublicKey: G...\npurpose: connect\nexpiresAt: ..."
+  // That is the format StellarAuthService.connectWallet verifies. Do NOT use
+  // /auth/stellar/challenge — that endpoint returns purpose: login and rejects
+  // a `purpose` query param (400 "property purpose should not exist").
+  // Likewise never use the legacy /auths/wallet/challenge (old WalletService format).
   const response = await apiClient.get('/auth/stellar/connect/challenge', {
     params: { stellarAddress },
   });
-  // Returns { challenge: string, message: string, expiresIn: string }
-  // challenge format: "ClipsCash auth nonce: <nonce>\npublicKey: G...\npurpose: connect\n..."
   return response.data as { challenge: string; message: string; expiresIn: string };
 };
 

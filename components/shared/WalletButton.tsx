@@ -11,9 +11,10 @@
  *
  * For logged-in (email/Google) users the correct flow is:
  *   1. Open Freighter modal → get address
- *   2. GET /auth/stellar/connect/challenge?stellarAddress=G…  (purpose: connect)
+ *   2. GET /auth/stellar/connect/challenge?stellarAddress=G…
+ *      (StellarAuthService — returns structured challenge with purpose: connect)
  *   3. Sign the challenge string in Freighter
- *   4. POST /auth/stellar/connect  { stellarAddress, nonce/message, signature }
+ *   4. POST /auth/stellar/connect  { stellarAddress, nonce, signature }
  *   5. Refresh /users/me so the UI reflects the linked address
  *
  * For visitors on the login page, pass onConnect(address) to handle post-connect
@@ -24,7 +25,7 @@ import React, { useState } from "react";
 import { Loader2, Wallet } from "lucide-react";
 import { useWallet } from "@/components/WalletProvider";
 import { connectStellarWallet, getConnectWalletChallenge, disconnectStellarWallet } from "@/lib/queries";
-import { signAuthMessage, ensureHexSignature, getWalletAddress } from "@/lib/wallet";
+import { signAuthMessage, getWalletAddress } from "@/lib/wallet";
 import { useAuth } from "@/components/AuthProvider";
 import { useToast } from "@/components/shared/ToastProvider";
 
@@ -35,6 +36,10 @@ interface WalletButtonProps {
   responsiveCompact?: boolean;
   /** Called with the public key immediately after a successful wallet connect (login page use) */
   onConnect?: (address: string) => void;
+  label?: string;
+  linkingLabel?: string;
+  connectedLabel?: string;
+  iconClassName?: string;
 }
 
 function truncate(addr: string): string {
@@ -44,7 +49,16 @@ function truncate(addr: string): string {
   return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
 }
 
-export default function WalletButton({ className, compact = false, responsiveCompact = false, onConnect }: WalletButtonProps) {
+export default function WalletButton({
+  className,
+  compact = false,
+  responsiveCompact = false,
+  onConnect,
+  label,
+  linkingLabel,
+  connectedLabel,
+  iconClassName,
+}: WalletButtonProps) {
   const { address, isConnecting, connect, openProfile, disconnect } = useWallet();
   const { user, setUser } = useAuth();
   const { toast } = useToast();
@@ -83,14 +97,67 @@ export default function WalletButton({ className, compact = false, responsiveCom
           throw new Error("Could not extract nonce from challenge.");
         }
 
-        // Sign the full challenge block — the backend verifies the signature
-        // against exactly this string using Keypair.verify().
-        // ensureHexSignature strips the 2-byte Freighter prefix to get clean 64 bytes.
-        const rawSig    = await signAuthMessage(challenge);
-        const signature = ensureHexSignature(rawSig);
+        // Sign the full challenge block directly with Freighter
+        const rawSig = await signAuthMessage(challenge);
+        // Send raw base64 signature directly without converting to hex (as requested by backend)
+        const signature = rawSig.startsWith("ed25519:") ? rawSig.slice(8).trim() : rawSig.trim();
+
+        // Debug: log everything so signature failures are diagnosable
+        console.groupCollapsed(
+          "%c[WalletButton] Wallet link debug — click to expand",
+          "color:#0fe;",
+        );
+        console.log("stellarAddress:", addr);
+        console.log("nonce:", nonce);
+        console.log(
+          "challenge (raw, %d chars):",
+          challenge.length,
+          JSON.stringify(challenge),
+        );
+        console.log(
+          "rawSig (from Freighter): type=%s, len=%d, preview=%s…",
+          typeof rawSig,
+          rawSig?.length,
+          rawSig?.slice(0, 40),
+        );
+        console.log(
+          "signature (sent to backend): len=%d, preview=%s…",
+          signature?.length,
+          signature?.slice(0, 40),
+        );
+        console.groupEnd();
 
         // POST { stellarAddress, nonce, signature } + JWT cookie (auto-sent)
-        await connectStellarWallet(addr, signature, nonce);
+        // The backend (Render free tier) spins down after ~15 min of inactivity
+        // and can take 30s+ to cold-start. Retry on 503 / network errors so
+        // the user doesn't have to re-sign in Freighter.
+        const MAX_RETRIES = 4;
+        let connected = false;
+        for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+          try {
+            await connectStellarWallet(addr, signature, nonce);
+            connected = true;
+            break;
+          } catch (postErr: any) {
+            const status = postErr?.response?.status;
+            const isServerWaking =
+              status === 503 ||
+              postErr?.code === "ERR_NETWORK" ||
+              postErr?.message?.includes("503");
+
+            if (isServerWaking && attempt < MAX_RETRIES) {
+              console.warn(
+                `[WalletButton] POST /auth/stellar/connect got ${status ?? "network error"}, ` +
+                `backend cold-starting — retry ${attempt}/${MAX_RETRIES - 1} in 5s…`,
+              );
+              await new Promise((r) => setTimeout(r, 5000));
+              continue;
+            }
+            throw postErr; // not a 503, or out of retries — bubble up
+          }
+        }
+
+        if (!connected) throw new Error("Could not connect wallet after retries.");
 
         // Refresh user so stellarAddress is reflected everywhere
         const apiClientMod = (await import("@/lib/apiClient")).default;
@@ -99,10 +166,21 @@ export default function WalletButton({ className, compact = false, responsiveCom
 
         toast("Wallet linked to your account!", "success");
       } catch (err: any) {
-        const msg =
+        const status = err?.response?.status;
+        let msg =
           err?.response?.data?.message ||
           err?.message ||
           "Failed to link wallet. Please try again.";
+        // 503 from the proxy means the backend is cold-starting on Render.
+        // The user just needs to try again — by then the backend will be awake.
+        if (status === 503) {
+          msg = "The server is starting up. Please try connecting your wallet again in a moment.";
+        }
+        console.error("[WalletButton] Link failed:", {
+          status,
+          data: err?.response?.data,
+          message: err?.message,
+        });
         toast(msg, "error");
         // Disconnect from kit so state isn't out of sync
         await disconnect();
@@ -158,8 +236,8 @@ export default function WalletButton({ className, compact = false, responsiveCom
           "flex items-center justify-center gap-2 px-4 py-3 rounded-[14px] bg-brand/10 border border-brand/30 text-brand hover:bg-brand/20 transition-all font-bold text-sm"
         }
       >
-        <Wallet className="w-4 h-4 shrink-0" />
-        <span className={`${labelClass} tabular-nums`}>{truncate(address)}</span>
+        <Wallet className={iconClassName ?? "w-4 h-4 shrink-0"} />
+        <span className={`${labelClass} tabular-nums`}>{connectedLabel ?? truncate(address)}</span>
       </button>
     );
   }
@@ -175,12 +253,12 @@ export default function WalletButton({ className, compact = false, responsiveCom
       }
     >
       {busy ? (
-        <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+        <Loader2 className={iconClassName ?? "w-4 h-4 animate-spin shrink-0"} />
       ) : (
-        <Wallet className="w-4 h-4 text-brand shrink-0" />
+        <Wallet className={iconClassName ?? "w-4 h-4 text-brand shrink-0"} />
       )}
       <span className={labelClass}>
-        {busy ? "Linking wallet…" : "Connect Wallet"}
+        {busy ? (linkingLabel ?? "Linking wallet…") : (label ?? "Connect Wallet")}
       </span>
     </button>
   );

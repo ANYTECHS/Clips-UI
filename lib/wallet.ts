@@ -163,6 +163,12 @@ export function ensureHexSignature(signature: string): string {
       .map((b) => b.toString(16).padStart(2, "0"))
       .join("");
 
+    // Debug: log the conversion details
+    console.log(
+      "[ensureHexSignature] input len=%d, decoded bytes=%d, stripped=%s, hex len=%d",
+      signature.length, bytes.length, bytes.length === 66, sigHex.length,
+    );
+
     if (sigHex.length === 128) return sigHex;
 
     // Unexpected length — log and return raw so the error is visible

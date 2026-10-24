@@ -158,21 +158,23 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
         setUser(user);
         router.push("/dashboard");
       } else {
-        await apiClient.post("/auths/signup", { fullName: cleanFullName, email: cleanEmail, password });
-        // Account created — verification email is sent by backend
+        // Step 1: Send OTP to email before creating account
+        await apiClient.post("/auths/send-otp", { email: cleanEmail });
         setPendingVerificationEmail(cleanEmail);
         setShowVerificationModal(true);
-        setInfo("Verification email sent! Check your inbox.");
+        setInfo("Verification code sent! Please check your email.");
       }
     } catch (err: any) {
-      if (err.response?.status === 400) {
-        console.error("Auth validation error:", err.response.data);
-      }
+      const status = err.response?.status;
       let message = err.response?.data?.message || err.message || "An error occurred";
       if (Array.isArray(message)) message = message[0];
 
+      if (status === 400 && currentMode === "login") {
+        console.error("Auth validation error:", err.response?.data);
+      }
+
       // If user attempted login but email is not verified yet, show inline message with action link
-      if (typeof message === "string" && message.toLowerCase().includes("verify your email")) {
+      if (currentMode === "login" && typeof message === "string" && message.toLowerCase().includes("verify your email")) {
         setPendingVerificationEmail(cleanEmail);
         setIsUnverified(true);
         setError("Please verify your email before logging in.");
@@ -180,37 +182,18 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
         return;
       }
 
-      // Handle 409 Conflict during signup or login (email already registered)
-      if (err.response?.status === 409) {
+      // Handle 409 Conflict or 400 Bad Request (email already registered)
+      const isAlreadyExists =
+        status === 409 ||
+        (status === 400 &&
+          typeof message === "string" &&
+          (message.toLowerCase().includes("already exist") ||
+            message.toLowerCase().includes("already registered") ||
+            message.toLowerCase().includes("already in use")));
+
+      if (isAlreadyExists) {
         if (currentMode === "signup") {
-          // Check if this existing account is actually UNVERIFIED by attempting to resend verification
-          try {
-            await apiClient.post("/auths/resend-verification", { email: cleanEmail });
-            // It succeeded! The account exists in the DB but is unverified.
-            setPendingVerificationEmail(cleanEmail);
-            setShowVerificationModal(true);
-            setInfo("An account creation was already started with this email. We've sent a fresh verification code to your inbox!");
-            setLoading(false);
-            return;
-          } catch (resendErr: any) {
-            const resendBackendMsg = resendErr.response?.data?.message || resendErr.message || "";
-            const resendMsgStr = Array.isArray(resendBackendMsg) ? resendBackendMsg[0] : resendBackendMsg;
-            const isAlreadyVerified =
-              resendErr.response?.status === 400 &&
-              typeof resendMsgStr === "string" &&
-              resendMsgStr.toLowerCase().includes("already verified");
-
-            setPendingVerificationEmail(cleanEmail);
-
-            if (isAlreadyVerified) {
-              setIsUnverified(false);
-              message = "This email is already registered and verified. Please sign in instead.";
-            } else {
-              // Still unverified (e.g. cooldown active or resend temporarily rate limited)
-              setIsUnverified(true);
-              message = "This email was already submitted but has not been verified yet. Enter your code below or request a new one.";
-            }
-          }
+          message = "This email is already registered. Try logging in instead.";
         } else {
           message = "This email is already registered. Try logging in instead.";
         }
@@ -416,6 +399,11 @@ export default function AuthForm({ mode = "login", showWallet = true }: AuthForm
         isOpen={showVerificationModal}
         onClose={() => setShowVerificationModal(false)}
         email={pendingVerificationEmail}
+        signupPayload={
+          currentMode === "signup" && fullName && password
+            ? { fullName: fullName.trim(), password }
+            : undefined
+        }
         onChangeEmail={() => {
           setShowVerificationModal(false);
           const emailInput = document.getElementById("auth-email");
