@@ -11,12 +11,12 @@ import { useAuth } from "@/components/AuthProvider";
 import WalletButton from "@/components/shared/WalletButton";
 import { useToast } from "@/components/shared/ToastProvider";
 import { signTransaction, submitToStellar, hasUsdcTrustline } from "@/lib/wallet";
-import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
+import { uploadToCloudinary, type CloudinaryUploadResult } from "@/lib/uploadToCloudinary";
 import {
   buildAgentPaymentXdr, hireAgent,
   buildSubscriptionPaymentXdr, activateSubscription,
   getMySubscription,
-  type Agent, type StellarSubscription,
+  type Agent, type AgentJob, type StellarSubscription,
 } from "@/lib/queries";
 import apiClient from "@/lib/apiClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -95,58 +95,22 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
     }
   };
 
-  // ── Upload file to Cloudinary + register video, return { url, videoId } ───
+  // ── Upload file to Cloudinary ONLY (storage upload, no clipping initiated) ──
 
-  const uploadFile = async (): Promise<{ url: string; videoId: string }> => {
+  const uploadVideoToCloudinary = async (): Promise<CloudinaryUploadResult> => {
     if (!selectedFile) throw new Error("No file selected.");
     setStep("uploading");
     setUploadProgress(0);
 
-    // 1. Upload to Cloudinary directly from browser
     const cloudResult = await uploadToCloudinary(selectedFile, (pct) => {
       setUploadProgress(pct >= 0 ? pct : 0);
     });
 
-    // 2. Register with backend to get a videoId for the processing page
-    const regRes = await apiClient.post("/videos/register", {
-      cloudinaryUrl: cloudResult.secureUrl,
-      publicId:      cloudResult.publicId,
-      title:         selectedFile.name.replace(/\.[^/.]+$/, ""),
-      sourceType:    "upload",
-      style,
-      duration:      cloudResult.duration,
-      bytes:         cloudResult.bytes,
-    });
-
-    const videoId =
-      regRes.data?.video?.id ??
-      regRes.data?.id        ??
-      regRes.data?.data?.id  ??
-      null;
-
-    if (!videoId) throw new Error("Upload succeeded but no video ID was returned.");
-
-    return { url: cloudResult.secureUrl, videoId: String(videoId) };
+    return cloudResult;
   };
 
-  // ── Register a URL video with backend to get a videoId ────────────────────
-
-  const registerUrlVideo = async (url: string): Promise<string> => {
-    const res = await apiClient.post("/videos/from-url", {
-      url,
-      style,
-      targetPlatforms: [],
-    });
-    const videoId =
-      res.data?.video?.id ??
-      res.data?.id        ??
-      res.data?.data?.id  ??
-      null;
-    if (!videoId) throw new Error("Failed to register video URL.");
-    return String(videoId);
-  };
-
-  // ── Core hire flow (shared between pay-per-job and subscription) ───────────
+  // ── Core hire & payment transaction flow ──────────────────────────────────
+  // The transaction MUST succeed here before any video clipping is permitted.
 
   const runHireFlow = async (resolvedUrl: string) => {
     // Pre-flight: verify the user's wallet has a USDC trustline on the correct network.
@@ -174,12 +138,13 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
       // 2. Sign in wallet
       setStep("signing");
       const signedXdr = await signTransaction(xdr);
+      if (!signedXdr) throw new Error("Transaction signature was cancelled.");
 
-      // 3. Submit to Stellar Horizon — backend verifies by looking up the txHash
+      // 3. Submit to Stellar Horizon — verify on-chain
       setStep("submitting");
       await submitToStellar(signedXdr);
 
-      // 4. Hire
+      // 4. Hire agent on backend
       const job = await hireAgent({ senderAddress: address!, videoUrl: resolvedUrl, style, signedXdr });
       return job;
     } else {
@@ -190,9 +155,10 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
         // 1. Build subscription XDR
         const { xdr } = await buildSubscriptionPaymentXdr({ senderAddress: address!, plan: selPlan });
 
-        // 2. Sign
+        // 2. Sign in wallet
         setStep("signing");
         const signedXdr = await signTransaction(xdr);
+        if (!signedXdr) throw new Error("Transaction signature was cancelled.");
 
         // 3. Submit to Horizon
         setStep("submitting");
@@ -210,6 +176,62 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
     }
   };
 
+  // ── Initiate AI video clipping (allowed ONLY after transaction succeeds) ─
+
+  const startAgentClipProcessing = async (
+    resolvedUrl: string,
+    cloudResult: CloudinaryUploadResult | null,
+    job: AgentJob
+  ): Promise<string> => {
+    // 1. If backend's hireAgent endpoint already created the video record
+    const existingVideoId =
+      (job as any)?.videoId ??
+      (job as any)?.video?.id ??
+      (job as any)?.video_id ??
+      null;
+
+    if (existingVideoId) {
+      return String(existingVideoId);
+    }
+
+    // 2. Register video with backend to trigger clipping
+    if (videoSource === "upload" && cloudResult) {
+      const regRes = await apiClient.post("/videos/register", {
+        cloudinaryUrl: cloudResult.secureUrl,
+        publicId:      cloudResult.publicId,
+        title:         selectedFile?.name.replace(/\.[^/.]+$/, "") ?? "Video",
+        sourceType:    "upload",
+        style,
+        duration:      cloudResult.duration,
+        bytes:         cloudResult.bytes,
+      });
+
+      const videoId =
+        regRes.data?.video?.id ??
+        regRes.data?.id        ??
+        regRes.data?.data?.id  ??
+        null;
+
+      if (!videoId) throw new Error("Video uploaded but backend did not return video ID.");
+      return String(videoId);
+    } else {
+      const res = await apiClient.post("/videos/from-url", {
+        url:             resolvedUrl,
+        style,
+        targetPlatforms: [],
+      });
+
+      const videoId =
+        res.data?.video?.id ??
+        res.data?.id        ??
+        res.data?.data?.id  ??
+        null;
+
+      if (!videoId) throw new Error("Backend did not return a video ID for processing.");
+      return String(videoId);
+    }
+  };
+
   // ── Submit handler ─────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
@@ -217,42 +239,84 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
 
     try {
       let resolvedUrl = effectiveUrl;
-      let videoId: string | null = null;
+      let cloudResult: CloudinaryUploadResult | null = null;
 
       if (videoSource === "upload") {
-        // Upload to Cloudinary + register video → get videoId before payment
-        const { url, videoId: vid } = await uploadFile();
-        resolvedUrl = url;
-        videoId = vid;
+        if (!selectedFile) {
+          toast("Please select a video file first.", "error");
+          return;
+        }
+        // Step A: Upload file to Cloudinary storage ONLY
+        // Note: This does NOT initiate any backend clipping or agent processing!
+        cloudResult = await uploadVideoToCloudinary();
+        resolvedUrl = cloudResult.secureUrl;
       } else {
-        // Register the URL with the backend → get videoId before payment
-        setStep("payment"); // show payment screen while registering
-        videoId = await registerUrlVideo(resolvedUrl);
+        if (!isValidUrl(resolvedUrl)) {
+          toast("Please enter a valid video URL.", "error");
+          return;
+        }
       }
 
-      // Pay → sign → submit to Stellar → hire agent
+      // ── Step B: Execute payment transaction first ──
+      // Agent is ONLY allowed to cut clips if transaction is successful!
+      // If transaction fails or user rejects, execution throws and stops immediately.
       const job = await runHireFlow(resolvedUrl);
 
-      queryClient.invalidateQueries({ queryKey: ["agentJobs"] });
-      onJobCreated(job.id);
+      // ── Step C: Transaction SUCCEEDED! Now agent is allowed to cut clips ──
+      setStep("done");
 
-      // Payment confirmed — navigate straight to the AI processing page
-      saveActiveJob(videoId!);
-      onClose();
-      router.push(`/dashboard/processing?videoId=${videoId}`);
+      let videoId: string | null = null;
+      try {
+        videoId = await startAgentClipProcessing(resolvedUrl, cloudResult, job);
+      } catch (clipErr: any) {
+        console.error("Failed to start clip processing after payment:", clipErr);
+        queryClient.invalidateQueries({ queryKey: ["agentJobs"] });
+        if (job?.id) onJobCreated(job.id);
+        const clipMsg = clipErr?.response?.data?.message ?? clipErr?.message ?? "Failed to initialize clipping.";
+        throw new Error(
+          `Payment confirmed (Job #${job.id}), but video clipping failed to start: ${
+            Array.isArray(clipMsg) ? clipMsg[0] : clipMsg
+          }`
+        );
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["agentJobs"] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
+      if (job?.id) onJobCreated(job.id);
+
+      // Payment confirmed and clipping initiated — navigate straight to processing page
+      if (videoId) {
+        saveActiveJob(videoId);
+        onClose();
+        router.push(`/dashboard/processing?videoId=${videoId}`);
+      } else {
+        toast("Agent hired and clipping job started!", "success");
+        onClose();
+      }
     } catch (err: any) {
+      console.error("[HireAgentModal] Error during hire flow:", err);
       const msg = err?.response?.data?.message ?? err?.message ?? "Something went wrong.";
       setErrMsg(Array.isArray(msg) ? msg[0] : msg);
       setStep("error");
     }
   };
 
+  const isBusy =
+    step === "uploading" ||
+    step === "payment"   ||
+    step === "signing"   ||
+    step === "submitting" ||
+    step === "done";
+
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={!isBusy ? onClose : undefined}
+      />
 
       <div className="relative w-full max-w-lg bg-[#080C0B] border border-white/10 rounded-[28px] shadow-[0_0_80px_rgba(0,0,0,0.8)] overflow-hidden">
         {/* Glow */}
@@ -270,8 +334,9 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
             </div>
           </div>
           <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-[#5A6F65] hover:text-white hover:bg-white/5 transition-all"
+            onClick={!isBusy ? onClose : undefined}
+            disabled={isBusy}
+            className="p-2 rounded-xl text-[#5A6F65] hover:text-white hover:bg-white/5 transition-all disabled:opacity-30 disabled:cursor-not-allowed"
           >
             <X className="w-5 h-5" />
           </button>
@@ -605,8 +670,11 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
               <div className="w-16 h-16 rounded-full bg-red-400/10 border border-red-400/20 flex items-center justify-center">
                 <AlertCircle className="w-8 h-8 text-red-400" />
               </div>
-              <p className="text-white font-bold text-[16px]">Something went wrong</p>
+              <p className="text-white font-bold text-[16px]">Transaction Failed</p>
               <p className="text-red-300 text-[13px] max-w-xs leading-relaxed">{errMsg}</p>
+              <p className="text-[#5A6F65] text-[12px] max-w-xs">
+                All process was stopped. No video clips were generated.
+              </p>
               <button
                 onClick={() => { setStep("config"); setUploadProgress(0); }}
                 className="px-6 py-3 rounded-[14px] bg-[#0B100E] border border-white/10 text-white font-bold text-[14px] hover:border-white/20 transition-all"
