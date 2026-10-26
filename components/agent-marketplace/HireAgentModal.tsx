@@ -113,19 +113,11 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
   // The transaction MUST succeed here before any video clipping is permitted.
 
   const runHireFlow = async (resolvedUrl: string) => {
-    // Pre-flight: verify the user's wallet has a USDC trustline on the correct network.
-    // This catches op_no_trust before we even build the XDR, with a clear message.
+    // Pre-flight: verify the user's wallet has a USDC trustline.
     const hasTrust = await hasUsdcTrustline(address!);
     if (!hasTrust) {
-      const issuer =
-        process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
-          ? "GA5ZSEJYB37JRC5AVCIA5MOP4RHTM335X2KGX3IHOJAPP5RE34K4KZVN"
-          : "GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5";
       throw new Error(
-        `Your wallet has no USDC trustline on the ${
-          process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet" ? "mainnet" : "testnet"
-        }. ` +
-        `In Freighter → Manage Assets → Add asset manually → code: USDC, issuer: ${issuer}`
+        "Your wallet does not have USDC enabled. Please open Freighter, go to 'Manage Assets', and add USDC before continuing."
       );
     }
 

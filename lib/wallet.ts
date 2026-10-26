@@ -17,9 +17,10 @@ import { AlbedoModule } from "@creit-tech/stellar-wallets-kit/modules/albedo";
 import { RabetModule } from "@creit-tech/stellar-wallets-kit/modules/rabet";
 import { Networks } from "@creit-tech/stellar-wallets-kit/types";
 
-// Use TESTNET during development — switch to Networks.PUBLIC for production
+// Supports 'public', 'PUBLIC', or 'mainnet' for production — defaults to testnet
+const rawNetwork = (process.env.NEXT_PUBLIC_STELLAR_NETWORK || "").trim().toLowerCase();
 export const STELLAR_NETWORK =
-  process.env.NEXT_PUBLIC_STELLAR_NETWORK === "mainnet"
+  rawNetwork === "public" || rawNetwork === "mainnet"
     ? Networks.PUBLIC
     : Networks.TESTNET;
 
@@ -267,10 +268,13 @@ export async function submitToStellar(signedXdr: string): Promise<string> {
     // Always log the raw codes so they're visible in the browser console
     console.error("[submitToStellar] failed — result_codes:", JSON.stringify(codes));
 
+    const isPublic = STELLAR_NETWORK === Networks.PUBLIC;
+    const networkLabel = isPublic ? "Public (Mainnet)" : "Testnet";
+
     // ── Transaction-level codes ──────────────────────────────────────────────
     if (txCode === "tx_bad_auth") {
       throw new Error(
-        "Transaction signature is invalid. Make sure Freighter is set to Testnet and try again."
+        `Transaction signature is invalid. Make sure your wallet network is set to ${networkLabel} and try again.`
       );
     }
     if (txCode === "tx_bad_seq") {
@@ -280,8 +284,9 @@ export async function submitToStellar(signedXdr: string): Promise<string> {
     }
     if (txCode === "tx_no_account") {
       throw new Error(
-        "Your Stellar account does not exist on the testnet. " +
-        "Fund it first at https://friendbot.stellar.org"
+        isPublic
+          ? "Your Stellar account is not activated. Please fund it with at least 2 XLM first."
+          : "Your Stellar account does not exist on testnet. Fund it at https://friendbot.stellar.org"
       );
     }
     if (txCode === "tx_insufficient_fee") {
@@ -291,22 +296,23 @@ export async function submitToStellar(signedXdr: string): Promise<string> {
     // ── Operation-level codes ────────────────────────────────────────────────
     if (opCodes.includes("op_underfunded")) {
       throw new Error(
-        "Insufficient XLM or USDC balance. " +
-        "Fund your testnet wallet at https://friendbot.stellar.org and ensure you have a USDC trustline."
+        isPublic
+          ? "Insufficient XLM or USDC balance in your wallet."
+          : "Insufficient XLM or USDC balance. Fund your testnet wallet at https://friendbot.stellar.org and ensure you have USDC."
       );
     }
     if (opCodes.includes("op_no_trust")) {
       throw new Error(
-        "The platform's receiving wallet has no USDC trustline on testnet. " +
-        "This is a backend configuration issue — the platform wallet needs to add the USDC trustline. " +
-        "Contact your backend team to fund the platform wallet's USDC trustline on testnet."
+        "The receiving wallet does not have a USDC trustline enabled. Please contact support."
       );
     }
     if (opCodes.includes("op_line_full")) {
       throw new Error("Destination account's USDC trustline is full.");
     }
     if (opCodes.includes("op_no_destination")) {
-      throw new Error("Destination account does not exist on the Stellar testnet.");
+      throw new Error(
+        `Destination account does not exist on Stellar ${networkLabel}.`
+      );
     }
     if (opCodes.includes("op_not_authorized")) {
       throw new Error("This asset requires authorization — contact the issuer.");
