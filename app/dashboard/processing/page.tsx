@@ -9,6 +9,7 @@ import DashboardLayout from "@/components/shared/DashboardLayout";
 import { getProjectsData } from "@/lib/queries";
 import apiClient from "@/lib/apiClient";
 import { loadActiveJob, saveActiveJob, clearActiveJob } from "@/lib/processingStore";
+import { markFreeJobAsClaimed } from "@/lib/freeJobStore";
 import { Sparkles, Clock, RefreshCw, Zap, CheckCircle2, AlertCircle } from "lucide-react";
 
 // ─── Strategy ─────────────────────────────────────────────────────────────────
@@ -100,6 +101,7 @@ function ProcessingContent() {
 
       // Job done — remove the persisted entry so a fresh visit starts clean
       clearActiveJob();
+      markFreeJobAsClaimed();
 
       setIsDone(true);
       setProgress(100);

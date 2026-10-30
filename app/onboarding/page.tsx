@@ -6,8 +6,6 @@ import { useAuth } from "@/components/AuthProvider";
 import Navbar from "@/components/Navbar";
 import OnboardingHero from "@/components/onboarding/OnboardingHero";
 import ProfileSetupForm from "@/components/onboarding/ProfileSetupForm";
-import SocialConnectPreview from "@/components/onboarding/SocialConnectPreview";
-import SocialConnectStep from "@/components/onboarding/SocialConnectStep";
 import apiClient from "@/lib/apiClient";
 import { Wallet, Loader2 } from "lucide-react";
 import { signAuthMessage, StellarWalletsKit, ensureHexSignature } from "@/lib/wallet";
@@ -33,8 +31,6 @@ function OnboardingInner() {
   // Wallet signup form state
   const [walletError, setWalletError] = useState("");
 
-  const step = !user?.onboardingStep || user.onboardingStep === 1 ? 1 : 2;
-
   // ── Wallet signup: anonymous — no fullName needed, goes straight to dashboard ──
 
   const handleWalletSignup = async (e: React.FormEvent) => {
@@ -52,8 +48,6 @@ function OnboardingInner() {
       }
 
       // 1. Get challenge from backend
-      // Response: { challenge, message, expiresIn }
-      // We sign the 'challenge' string (the unique ID) and send it back as 'message'.
       const challengeRes = await apiClient.post("/auths/wallet/challenge", {
         stellarAddress: signupAddress,
       });
@@ -93,9 +87,9 @@ function OnboardingInner() {
     }
   };
 
-  // ── Step 1: save username ──────────────────────────────────────────────────
+  // ── Step 1: save profile and navigate straight to dashboard ──────────────
 
-  const completeStep1 = async (e: React.FormEvent) => {
+  const completeProfileSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
     const cleanUsername = username.trim();
@@ -109,28 +103,17 @@ function OnboardingInner() {
       setUser({
         ...data,
         username: cleanUsername,
-        onboardingStep: 2,
+        onboardingStep: 3,
         profile: { ...data.profile, username: cleanUsername, niche },
       });
+      router.push("/dashboard");
     } catch {
       setUser({
         ...user,
         username: cleanUsername,
-        onboardingStep: 2,
+        onboardingStep: 3,
         profile: { ...user.profile, username: cleanUsername, niche },
       });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Step 2: social connect / finish ───────────────────────────────────────
-
-  const completeStep2 = async () => {
-    if (!user) return;
-    setLoading(true);
-    try {
-      setUser({ ...user, onboardingStep: 3 });
       router.push("/dashboard");
     } finally {
       setLoading(false);
@@ -182,7 +165,7 @@ function OnboardingInner() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full bg-brand hover:bg-brand-hover text-black py-[15px] rounded-[12px] font-bold text-[15px] flex justify-center items-center gap-2 transition-all disabled:opacity-70 mt-4"
+                  className="w-full bg-brand hover:bg-brand-hover text-black py-[15px] rounded-[12px] font-bold text-[15px] flex justify-center items-center gap-2 transition-all disabled:opacity-70 mt-4 cursor-pointer"
                 >
                   {loading ? <Loader2 className="w-5 h-5 animate-spin text-black" /> : "Create Account & Go to Dashboard"}
                 </button>
@@ -190,7 +173,7 @@ function OnboardingInner() {
                 <button
                   type="button"
                   onClick={() => router.push("/login")}
-                  className="w-full text-center text-[13px] text-[#5A6F65] hover:text-white transition-colors"
+                  className="w-full text-center text-[13px] text-[#5A6F65] hover:text-white transition-colors cursor-pointer"
                 >
                   ← Back to login
                 </button>
@@ -199,27 +182,21 @@ function OnboardingInner() {
           </div>
         )}
 
-        {/* ── B: Step 1 — profile setup (username + niche) ──────────────── */}
-        {!isWalletSignup && step === 1 && (
+        {/* ── B: Profile setup (username + niche) → Direct to Dashboard ──────── */}
+        {!isWalletSignup && (
           <div className="w-full flex flex-col lg:flex-row items-start justify-between gap-16 lg:gap-8 mt-[-20px]">
             <OnboardingHero />
-            <div className="w-full max-w-[440px] flex flex-col gap-6">
+            <div className="w-full max-w-[460px] flex flex-col gap-6">
               <ProfileSetupForm
                 username={username}
                 setUsername={setUsername}
                 niche={niche}
                 setNiche={setNiche}
                 loading={loading}
-                onSubmit={completeStep1}
+                onSubmit={completeProfileSetup}
               />
-              <SocialConnectPreview />
             </div>
           </div>
-        )}
-
-        {/* ── C: Step 2 — social connections ────────────────────────────── */}
-        {!isWalletSignup && step === 2 && (
-          <SocialConnectStep onComplete={completeStep2} />
         )}
 
       </main>

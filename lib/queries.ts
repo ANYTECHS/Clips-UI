@@ -130,6 +130,7 @@ export const getProjectsData = async (videoId?: string, page = 1, limit = 20) =>
       duration: clip.duration ? formatDuration(clip.duration) : "00:00",
       style: clip.platform || clip.style || "General",
       clipUrl: clip.clipUrl || null,
+      readyToPostKit: clip.readyToPostKit || null,
     }));
   } catch (error) {
     console.error("Failed to fetch projects data:", error);
@@ -147,6 +148,64 @@ export const deleteClip = async (id: string) => {
   await apiClient.delete(`/clips/${id}`);
 };
 
+export const getUserClipCount = async (): Promise<number> => {
+  try {
+    const res = await apiClient.get("/clips?page=1&limit=1");
+    if (typeof res.data?.total === "number") return res.data.total;
+    if (Array.isArray(res.data)) return res.data.length;
+    if (Array.isArray(res.data?.data)) return res.data.total ?? res.data.data.length;
+    return 0;
+  } catch {
+    return 0;
+  }
+};
+
+export const getUserVideoCount = async (): Promise<number> => {
+  try {
+    const res = await apiClient.get("/videos?page=1&limit=1");
+    if (typeof res.data?.total === "number") return res.data.total;
+    if (Array.isArray(res.data)) return res.data.length;
+    if (Array.isArray(res.data?.data)) return res.data.total ?? res.data.data.length;
+    return 0;
+  } catch {
+    return 0;
+  }
+};
+
+/**
+ * Checks whether the current user has EVER generated/clipped a project.
+ * Queries both /videos (lifetime created videos) and /clips (active clips).
+ * Even if the user deletes all clips, the parent video record remains on the backend.
+ */
+export const checkUserHasEverClipped = async (): Promise<boolean> => {
+  try {
+    const [videosRes, clipsRes] = await Promise.allSettled([
+      apiClient.get("/videos?page=1&limit=1"),
+      apiClient.get("/clips?page=1&limit=1"),
+    ]);
+
+    let videoTotal = 0;
+    if (videosRes.status === "fulfilled") {
+      const d = videosRes.value.data;
+      if (typeof d?.total === "number") videoTotal = d.total;
+      else if (Array.isArray(d)) videoTotal = d.length;
+      else if (Array.isArray(d?.data)) videoTotal = d.total ?? d.data.length;
+    }
+
+    let clipTotal = 0;
+    if (clipsRes.status === "fulfilled") {
+      const d = clipsRes.value.data;
+      if (typeof d?.total === "number") clipTotal = d.total;
+      else if (Array.isArray(d)) clipTotal = d.length;
+      else if (Array.isArray(d?.data)) clipTotal = d.total ?? d.data.length;
+    }
+
+    return videoTotal > 0 || clipTotal > 0;
+  } catch {
+    return false;
+  }
+};
+
 export const getClipById = async (id: string) => {
   const response = await apiClient.get(`/clips/${id}`);
   return response.data;
@@ -159,6 +218,38 @@ export const createClip = async (data: any) => {
 
 export const updateClip = async (id: string, data: any) => {
   const response = await apiClient.patch(`/clips/${id}`, data);
+  return response.data;
+};
+
+// ─── Ready-to-Post Kit ─────────────────────────────────────────────────────────
+
+export interface ReadyToPostKitPlatformLinks {
+  tiktok?: string;
+  shorts?: string;
+  reels?: string;
+  instagram?: string;
+  youtube?: string;
+  twitter?: string;
+  x?: string;
+  [key: string]: string | undefined;
+}
+
+export interface ReadyToPostKitCopyTemplates {
+  readyToPost?: string;
+  caption?: string;
+  hashtags?: string | string[];
+  [key: string]: any;
+}
+
+export interface ReadyToPostKit {
+  downloadUrl?: string;
+  copyTemplates?: ReadyToPostKitCopyTemplates;
+  platformLinks?: ReadyToPostKitPlatformLinks;
+  [key: string]: any;
+}
+
+export const getClipReadyToPostKit = async (clipId: string | number): Promise<ReadyToPostKit> => {
+  const response = await apiClient.get(`/clips/${clipId}/ready-to-post`);
   return response.data;
 };
 
@@ -212,6 +303,7 @@ export const getPublicFeed = async (page = 1, limit = 20) => {
       creatorAddress: clip.creatorAddress || null,
       creatorName: clip.creatorName || null,
       createdAt: clip.createdAt || null,
+      readyToPostKit: clip.readyToPostKit || null,
     })),
     total: response.data.total || clips.length,
   };
@@ -367,6 +459,8 @@ export interface AgentJob {
   resultClipIds: number[];
   agentId: number;
   createdAt: string;
+  clips?: any[];
+  readyToPostKit?: ReadyToPostKit | null;
 }
 
 export const getAgents = async (): Promise<Agent[]> => {
@@ -416,7 +510,11 @@ export const buildAgentPaymentXdr = async (data: {
   videoUrl: string;
   style?: string;
 }): Promise<{ xdr: string; memo: string; amount: string }> => {
-  const res = await apiClient.post("/stellar/agent/build-payment", data);
+  const res = await apiClient.post("/stellar/agent/build-payment", {
+    senderAddress: data.senderAddress,
+    videoUrl: data.videoUrl,
+    style: data.style,
+  });
   return res.data;
 };
 
@@ -426,7 +524,12 @@ export const hireAgent = async (data: {
   style?: string;
   signedXdr?: string;
 }): Promise<AgentJob> => {
-  const res = await apiClient.post("/stellar/agent/hire", data);
+  const res = await apiClient.post("/stellar/agent/hire", {
+    senderAddress: data.senderAddress,
+    videoUrl: data.videoUrl,
+    style: data.style,
+    ...(data.signedXdr ? { signedXdr: data.signedXdr } : {}),
+  });
   return res.data;
 };
 

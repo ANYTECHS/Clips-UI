@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import apiClient from "@/lib/apiClient";
 import { saveActiveJob } from "@/lib/processingStore";
+import { markFreeJobAsClaimed } from "@/lib/freeJobStore";
 import { useYouTubeImport, isYouTubeUrl } from "@/lib/useYouTubeImport";
 
 export default function CreateClipsForm() {
@@ -89,7 +90,11 @@ export default function CreateClipsForm() {
     // YouTube — 5-step pipeline via useYouTubeImport
     if (isYouTubeUrl(trimmed)) {
       const result = await runYouTube(trimmed, platformToApiValue(activePlatform));
-      if (result.videoId) router.push(`/dashboard/processing?videoId=${result.videoId}`);
+      if (result.videoId) {
+        saveActiveJob(String(result.videoId));
+        markFreeJobAsClaimed();
+        router.push(`/dashboard/processing?videoId=${result.videoId}`);
+      }
       // errors surface via ytState.error panel below
       return;
     }
@@ -106,6 +111,7 @@ export default function CreateClipsForm() {
       const videoId = data?.video?.id ?? data?.id ?? data?.data?.id ?? data?.videoId;
       if (!videoId) throw new Error("Failed to get video ID from response.");
       saveActiveJob(String(videoId));
+      markFreeJobAsClaimed();
       router.push(`/dashboard/processing?videoId=${videoId}`);
     } catch (err: any) {
       if (err.response?.status === 401) { setError("Session expired — redirecting to login…"); return; }
@@ -147,6 +153,7 @@ export default function CreateClipsForm() {
       setUploadState("processing");
       setUploadProgress(100);
       saveActiveJob(String(videoId));
+      markFreeJobAsClaimed();
       router.push(`/dashboard/processing?videoId=${videoId}`);
     } catch (err: any) {
       const status = err.response?.status;

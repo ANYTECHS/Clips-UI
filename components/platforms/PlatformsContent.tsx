@@ -17,11 +17,12 @@ import {
 } from "@/components/shared/Icons";
 import { 
   Share2, 
-  Wallet,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
+  Wallet, 
+  Loader2, 
+  CheckCircle2, 
+  AlertCircle, 
   X,
+  Sparkles,
 } from "lucide-react";
 import { useWallet } from "@/components/WalletProvider";
 import WalletButton from "@/components/shared/WalletButton";
@@ -102,24 +103,48 @@ export default function PlatformsContent() {
           </button>
         </div>
       )}
-      {/* Top Navigation Bar removed */}
 
       <div className="px-4 sm:px-6 lg:px-10 py-12 space-y-16 max-w-[1400px] mx-auto w-full">
         {/* Header */}
         <div className="space-y-3">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand/10 border border-brand/20 text-brand text-[11px] font-black uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5" />
+            Auto-Posting Hub
+          </div>
           <h1 className="text-[44px] sm:text-[56px] font-black tracking-tight text-white leading-tight">
             Connect <span className="text-brand">Accounts</span>
           </h1>
-          <p className="text-[#5A6F65] text-[16px] sm:text-[18px] max-w-2xl font-medium leading-relaxed">Link your social media and Web3 wallets to start generating AI-powered clips and earning rewards automatically.</p>
+          <p className="text-[#5A6F65] text-[16px] sm:text-[18px] max-w-2xl font-medium leading-relaxed">
+            Link your social media and Web3 wallets to manage automated distribution and receive on-chain tips directly.
+          </p>
         </div>
 
         {/* Social Platforms */}
         <section>
           <SectionHeader 
-            title="Social Platforms" 
+            title="Auto-Posting Platforms" 
             icon={Share2} 
-            label={`${connectedPlatforms.length} CONNECTED`} 
+            label="COMING SOON" 
           />
+
+          {/* Info notice about Ready-to-Post Kit */}
+          <div className="mb-6 p-4 rounded-2xl bg-[#0D1511] border border-brand/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-brand/10 border border-brand/20 flex items-center justify-center text-brand shrink-0">
+                <Sparkles className="w-4 h-4" />
+              </div>
+              <div>
+                <p className="text-[13px] font-bold text-white">Direct Auto-Posting is Coming Soon</p>
+                <p className="text-[11px] text-[#5A6F65]">
+                  Use the <strong className="text-brand">Ready-to-Post Kit</strong> on any clip to download HD vertical video and publish with 100% native algorithm reach!
+                </p>
+              </div>
+            </div>
+            <span className="px-3 py-1 rounded-full bg-brand/10 border border-brand/25 text-brand text-[10px] font-black uppercase tracking-wider shrink-0">
+              Ready-to-Post Active
+            </span>
+          </div>
+
           {loading ? (
             <div className="flex justify-center py-20">
               <Loader2 className="w-10 h-10 text-brand animate-spin" />
@@ -128,37 +153,37 @@ export default function PlatformsContent() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <PlatformCard 
                 name="TikTok" 
-                description="Manage your main TikTok video feed"
+                description="Direct auto-posting integration"
                 icon={TikTokIcon} 
                 status={isConnected("TikTok") ? "ACTIVE" : "NOT LINKED"} 
-                ctaText="Connect Account"
+                ctaText="Coming Soon"
                 variant="vertical"
                 onDisconnected={handleDisconnected}
               />
               <PlatformCard 
                 name="Instagram" 
-                description="Connect to sync Reels"
+                description="Direct Reels auto-posting integration"
                 icon={InstagramIcon} 
                 status={isConnected("Instagram") ? "ACTIVE" : "NOT LINKED"} 
-                ctaText="Connect Account"
+                ctaText="Coming Soon"
                 variant="vertical"
                 onDisconnected={handleDisconnected}
               />
               <PlatformCard 
                 name="YouTube" 
-                description="Import and sync your long-form YouTube content"
+                description="Direct YouTube Shorts auto-posting"
                 icon={YoutubeIcon} 
                 status={isConnected("YouTube") ? "ACTIVE" : "NOT LINKED"} 
-                ctaText="Connect Account"
+                ctaText="Coming Soon"
                 variant="vertical"
                 onDisconnected={handleDisconnected}
               />
               <PlatformCard 
                 name="X / Twitter" 
-                description="Auto-post clips to X"
+                description="Direct video tweet auto-posting"
                 icon={TwitterIcon} 
                 status={isConnected("X / Twitter") ? "ACTIVE" : "NOT LINKED"} 
-                ctaText="Connect Account"
+                ctaText="Coming Soon"
                 variant="vertical"
                 onDisconnected={handleDisconnected}
               />
@@ -198,17 +223,17 @@ export default function PlatformsContent() {
                 <>
                   <div className="flex items-center gap-1.5 text-brand text-xs font-bold">
                     <CheckCircle2 className="w-4 h-4" />
-                    CONNECTED
+                    <span>CONNECTED</span>
                   </div>
                   <button
-                    onClick={disconnect}
-                    className="text-xs text-[#5A6F65] hover:text-red-400 transition-colors font-medium border border-white/5 hover:border-red-400/30 px-3 py-1.5 rounded-xl"
+                    onClick={() => disconnect()}
+                    className="text-xs text-[#5A6F65] hover:text-red-400 transition-colors px-3 py-1.5 rounded-lg border border-white/5 hover:border-red-400/20"
                   >
                     Disconnect
                   </button>
                 </>
               ) : (
-                <WalletButton className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-brand/10 border border-brand/20 text-brand hover:bg-brand/20 transition-all font-bold text-sm disabled:opacity-60" />
+                <WalletButton className="px-5 py-2.5 rounded-xl bg-brand hover:bg-brand-hover text-black font-bold text-xs transition-all shadow-[0_0_20px_rgba(0,229,143,0.3)]" />
               )}
             </div>
           </div>

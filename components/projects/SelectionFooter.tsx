@@ -2,7 +2,6 @@
 
 import React, { useState } from "react";
 import { Trash2, Zap, MoveRight, Loader2, CheckCircle2, AlertCircle, X, ChevronDown } from "lucide-react";
-import apiClient from "@/lib/apiClient";
 
 interface SelectionFooterProps {
   count: number;
@@ -31,7 +30,7 @@ export default function SelectionFooter({ count, selectedIds, onDelete, onClearS
 
   const showToast = (type: "success" | "error", message: string) => {
     setToast({ type, message });
-    setTimeout(() => setToast(null), 4000);
+    setTimeout(() => setToast(null), 5000);
   };
 
   const togglePlatform = (key: string) => {
@@ -61,45 +60,18 @@ export default function SelectionFooter({ count, selectedIds, onDelete, onClearS
   };
 
   const handlePost = async () => {
-    if (selectedPlatforms.length === 0) {
-      showToast("error", "Select at least one platform before posting.");
-      return;
-    }
-    setLoading(true);
-    setAction("post");
-    let succeeded = 0;
-    let failed = 0;
-    try {
-      for (const clipId of selectedIds) {
-        try {
-          await apiClient.post("/platforms/post-clip", {
-            clipId: Number(clipId) || clipId,
-            platforms: selectedPlatforms,
-          });
-          succeeded++;
-        } catch {
-          failed++;
-        }
-      }
-      if (failed === 0) {
-        showToast("success", `${succeeded} clip${succeeded > 1 ? "s" : ""} queued for posting.`);
-        onClearSelection();
-      } else if (succeeded > 0) {
-        showToast("error", `${succeeded} posted, ${failed} failed. Check your platform connections.`);
-      } else {
-        showToast("error", "Failed to queue clips. Check your platform connections.");
-      }
-    } finally {
-      setLoading(false);
-      setAction(null);
-    }
+    // Auto-Posting is coming soon — notify user with guidance to Ready-to-Post Kit
+    showToast(
+      "error",
+      "Direct Auto-Posting is coming soon! Use the 'Post Kit' button on individual clips to download HD and publish natively with maximum reach."
+    );
   };
 
   return (
     <>
       {/* In-app toast */}
       {toast && (
-        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl border shadow-xl animate-in slide-in-from-right-5 fade-in duration-300 ${
+        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3.5 rounded-2xl border shadow-xl animate-in slide-in-from-right-5 fade-in duration-300 max-w-md ${
           toast.type === "success"
             ? "bg-brand/10 border-brand/30 text-brand"
             : "bg-red-400/10 border-red-400/30 text-red-400"
@@ -107,8 +79,8 @@ export default function SelectionFooter({ count, selectedIds, onDelete, onClearS
           {toast.type === "success"
             ? <CheckCircle2 className="w-4 h-4 shrink-0" />
             : <AlertCircle className="w-4 h-4 shrink-0" />}
-          <span className="text-[13px] font-medium">{toast.message}</span>
-          <button onClick={() => setToast(null)} className="ml-2 opacity-60 hover:opacity-100">
+          <span className="text-[13px] font-medium leading-relaxed">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="ml-2 opacity-60 hover:opacity-100 shrink-0">
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
@@ -123,7 +95,7 @@ export default function SelectionFooter({ count, selectedIds, onDelete, onClearS
             </div>
             <div className="space-y-0.5">
               <p className="text-[16px] font-extrabold text-white">Clips selected</p>
-              <p className="text-[12px] font-medium text-[#5A6F65]">Ready for posting or deletion</p>
+              <p className="text-[12px] font-medium text-[#5A6F65]">Ready for Post Kit download or deletion</p>
             </div>
           </div>
 
@@ -162,12 +134,16 @@ export default function SelectionFooter({ count, selectedIds, onDelete, onClearS
             )}
           </div>
 
-          {/* Right: platform picker + post */}
+          {/* Right: platform picker + auto-post */}
           <div className="flex flex-col sm:flex-row items-center gap-4 relative">
-            <button className="flex items-center gap-2.5 px-6 py-3 rounded-2xl bg-[#111815] border border-[#1A2621] text-brand font-black text-[12px] hover:border-brand/40 transition-all">
+            {/* Auto-posting badge indicator */}
+            <div className="flex items-center gap-2.5 px-5 py-3 rounded-2xl bg-[#111815] border border-brand/20 text-brand font-black text-[12px] select-none">
               <Zap className="w-4 h-4 fill-brand" />
-              <span>AUTO-SCHEDULE ON</span>
-            </button>
+              <span>AUTO-POSTING</span>
+              <span className="px-2 py-0.5 rounded-full bg-brand/15 border border-brand/30 text-brand text-[9px] font-black uppercase tracking-wider">
+                Coming Soon
+              </span>
+            </div>
 
             {/* Platform selector */}
             <div className="relative">
@@ -218,19 +194,17 @@ export default function SelectionFooter({ count, selectedIds, onDelete, onClearS
               )}
             </div>
 
+            {/* Auto-Post CTA Button with Coming Soon badge */}
             <button
               onClick={handlePost}
-              disabled={loading || selectedPlatforms.length === 0}
-              className="flex items-center gap-3 px-10 py-4 rounded-3xl bg-brand text-black font-black text-[15px] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_30px_rgba(0,229,143,0.2)] disabled:opacity-50"
+              disabled={loading}
+              className="flex items-center gap-3 px-8 py-4 rounded-3xl bg-brand text-black font-black text-[14px] sm:text-[15px] transition-all hover:scale-[1.02] active:scale-[0.98] shadow-[0_10px_30px_rgba(0,229,143,0.2)]"
             >
-              {loading && action === "post" ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <>
-                  <span>Post Selected Clips</span>
-                  <MoveRight className="w-5 h-5 ml-1" />
-                </>
-              )}
+              <span>Auto-Post Selected</span>
+              <span className="px-2 py-0.5 rounded-full bg-black/20 text-black text-[9px] font-black uppercase tracking-wider">
+                Coming Soon
+              </span>
+              <MoveRight className="w-4 h-4 ml-0.5" />
             </button>
           </div>
         </div>

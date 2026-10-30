@@ -1,5 +1,5 @@
 import React from "react";
-import { User as UserIcon, Loader2, ArrowRight } from "lucide-react";
+import { User as UserIcon, Loader2, ArrowRight, Sparkles } from "lucide-react";
 
 interface ProfileSetupFormProps {
   username: string;
@@ -10,6 +10,21 @@ interface ProfileSetupFormProps {
   onSubmit: (e: React.FormEvent) => void;
 }
 
+const CONTENT_NICHES = [
+  { value: "tech_ai", label: "🚀 Tech, Coding & AI Tools" },
+  { value: "business_finance", label: "💼 Business, Finance & Wealth" },
+  { value: "podcast_interviews", label: "🎙️ Podcasts & Longform Interviews" },
+  { value: "gaming_esports", label: "🎮 Gaming & Esports Highlights" },
+  { value: "education_howto", label: "💡 Education, How-To & Books" },
+  { value: "fitness_wellness", label: "🏋️ Fitness, Health & Wellness" },
+  { value: "comedy_entertainment", label: "🎬 Comedy, Skits & Entertainment" },
+  { value: "lifestyle_vlog", label: "✈️ Lifestyle, Travel & Daily Vlogs" },
+  { value: "marketing_creator", label: "📈 Marketing & Creator Economy" },
+  { value: "food_cooking", label: "🍳 Cooking, Food Reviews & Recipes" },
+  { value: "creative_design", label: "🎨 Art, Music & Creative Design" },
+  { value: "news_commentary", label: "📰 News, Commentary & Analysis" },
+];
+
 export default function ProfileSetupForm({
   username,
   setUsername,
@@ -19,61 +34,85 @@ export default function ProfileSetupForm({
   onSubmit,
 }: ProfileSetupFormProps) {
   return (
-    <div className="bg-[#0C1712]/90 backdrop-blur-md rounded-[20px] p-[38px] shadow-[0_4px_40px_rgba(0,0,0,0.5)] border border-[#1A2D23] relative overflow-hidden">
-      <div className="flex items-center gap-3 mb-8">
-        <div className="w-9 h-9 rounded-[8px] bg-brand/10 border border-brand/20 text-brand flex items-center justify-center">
+    <div className="bg-[#0C1712]/95 backdrop-blur-md rounded-[24px] p-8 sm:p-[38px] shadow-[0_4px_40px_rgba(0,0,0,0.5)] border border-[#1A2D23] relative overflow-hidden">
+      <div className="flex items-center gap-3 mb-6">
+        <div className="w-10 h-10 rounded-xl bg-brand/10 border border-brand/20 text-brand flex items-center justify-center">
           <UserIcon className="w-5 h-5" />
         </div>
-        <h2 className="text-[18px] font-bold text-white tracking-tight">Basic Information</h2>
+        <div>
+          <h2 className="text-[19px] font-bold text-white tracking-tight">Creator Profile</h2>
+          <p className="text-[12px] text-[#5A6F65]">Configure your channel focus</p>
+        </div>
       </div>
 
-      <form onSubmit={onSubmit} className="space-y-[18px]">
+      <form onSubmit={onSubmit} className="space-y-5">
         <div>
-          <label className="block text-[13px] font-medium text-[#c1c9c6] mb-2">Username</label>
+          <label className="block text-[13px] font-semibold text-[#c1c9c6] mb-2">
+            Username
+          </label>
           <input
             type="text"
             required
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#3A4A43]"
+            className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[14px] px-4 py-3.5 text-[14px] font-medium focus:outline-none focus:bg-[#161F1A] transition-colors placeholder-[#4A5E54]"
             placeholder="e.g. alexrivera"
           />
         </div>
+
         <div>
-          <label className="block text-[13px] font-medium text-[#c1c9c6] mb-2">Creator Type</label>
+          <div className="flex items-center justify-between mb-2">
+            <label className="block text-[13px] font-semibold text-[#c1c9c6]">
+              Content Niche
+            </label>
+            <span className="text-[11px] text-brand font-medium flex items-center gap-1">
+              <Sparkles className="w-3 h-3" /> Tunes AI hooks
+            </span>
+          </div>
+
           <div className="relative">
             <select
               required
               value={niche}
               onChange={(e) => setNiche(e.target.value)}
-              className="w-full bg-[#131A17] border border-[#1E2A24] text-white focus:border-brand/70 rounded-[12px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] appearance-none transition-colors [&>option]:text-black"
+              className="w-full bg-[#131A17] border border-[#23352C] focus:border-brand text-white font-medium rounded-[14px] px-4 py-3.5 text-[14px] focus:outline-none focus:bg-[#161F1A] appearance-none transition-all cursor-pointer shadow-sm"
+              style={{ colorScheme: "dark" }}
             >
-              <option value="" disabled className="text-gray-500">
-                Select your niche
+              <option value="" disabled className="bg-[#0E1512] text-[#6A7F75]">
+                Select your primary content niche…
               </option>
-              <option value="gaming">Gaming</option>
-              <option value="podcast">Podcast</option>
-              <option value="vlog">Vlog & Lifestyle</option>
-              <option value="educational">Educational</option>
+              {CONTENT_NICHES.map((item) => (
+                <option
+                  key={item.value}
+                  value={item.value}
+                  className="bg-[#0E1512] text-white py-2"
+                >
+                  {item.label}
+                </option>
+              ))}
             </select>
-            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-[#5A6F65]">
+
+            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-brand">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
               </svg>
             </div>
           </div>
+          <p className="text-[11px] text-[#5A6F65] mt-1.5">
+            Helps our AI generate tailored captions, hooks, and trending hashtags for your clips.
+          </p>
         </div>
 
         <button
           type="submit"
           disabled={loading}
-          className="w-full bg-brand hover:bg-brand-hover text-black py-[15px] rounded-[12px] font-bold text-[15px] flex justify-center items-center gap-2 mt-[8px] transition-all"
+          className="w-full bg-brand hover:bg-brand-hover text-black py-4 rounded-[14px] font-extrabold text-[15px] flex justify-center items-center gap-2 mt-4 transition-all shadow-[0_0_25px_rgba(0,229,143,0.25)] hover:shadow-[0_0_35px_rgba(0,229,143,0.35)] active:scale-[0.99] disabled:opacity-70 cursor-pointer"
         >
           {loading ? (
             <Loader2 className="animate-spin w-5 h-5" />
           ) : (
             <>
-              Continue to step 2 <ArrowRight className="w-[18px] h-[18px]" />
+              Complete Setup & Go to Dashboard <ArrowRight className="w-[18px] h-[18px]" />
             </>
           )}
         </button>

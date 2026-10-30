@@ -2,12 +2,13 @@
 
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
-import { Play, Pause, X, Volume2, VolumeX, Download, Lock, Unlock } from "lucide-react";
+import { Play, Pause, X, Volume2, VolumeX, Download, Lock, Unlock, Sparkles, Loader2 } from "lucide-react";
 import TipModal from "./TipModal";
 import { useWallet } from "@/components/WalletProvider";
 import { isUnlocked } from "@/lib/tipUnlockStore";
-import { getClipDownloadUrl } from "@/lib/queries";
+import { getClipDownloadUrl, ReadyToPostKit } from "@/lib/queries";
 import { triggerDownload } from "@/lib/download";
+import ReadyToPostModal from "@/components/shared/ReadyToPostModal";
 
 interface AIClipCardProps {
   id: string;
@@ -22,6 +23,7 @@ interface AIClipCardProps {
   creatorAddress?: string;
   creatorName?: string;
   tippingEnabled?: boolean;
+  readyToPostKit?: ReadyToPostKit | null;
 }
 
 const FALLBACK =
@@ -99,51 +101,46 @@ function PreviewModal({
               playing ? "opacity-0 hover:opacity-100" : "opacity-100"
             }`}
           >
-            <div className="w-16 h-16 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl">
+            <div className="w-14 h-14 rounded-full bg-brand/90 flex items-center justify-center shadow-lg">
               {playing
-                ? <Pause className="w-7 h-7 text-white fill-white" />
-                : <Play className="w-7 h-7 text-white fill-white ml-1" />
+                ? <Pause className="w-6 h-6 text-black fill-black" />
+                : <Play className="w-6 h-6 text-black fill-black ml-1" />
               }
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-4 space-y-3">
-          <p className="text-white font-bold text-[14px] truncate">{title}</p>
-          <div
-            className="h-1.5 bg-white/10 rounded-full cursor-pointer overflow-hidden"
-            onClick={(e) => {
-              if (!videoRef.current) return;
-              const rect = e.currentTarget.getBoundingClientRect();
-              videoRef.current.currentTime =
-                ((e.clientX - rect.left) / rect.width) * videoRef.current.duration;
-            }}
-          >
+        {/* Controls */}
+        <div className="px-6 py-4 bg-[#0B100E] border-t border-white/5 space-y-3">
+          <div className="relative h-1 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-brand rounded-full transition-all duration-100"
+              className="absolute top-0 left-0 h-full bg-brand rounded-full transition-all"
               style={{ width: `${progress}%` }}
             />
           </div>
           <div className="flex items-center justify-between">
-            <button
-              onClick={toggle}
-              className="w-9 h-9 rounded-full bg-brand flex items-center justify-center text-black hover:bg-brand-hover transition-colors"
-            >
-              {playing
-                ? <Pause className="w-4 h-4 fill-black" />
-                : <Play className="w-4 h-4 fill-black ml-0.5" />
-              }
-            </button>
-            <button
-              onClick={() => {
-                if (!videoRef.current) return;
-                videoRef.current.muted = !muted;
-                setMuted(!muted);
-              }}
-              className="text-[#5A6F65] hover:text-white transition-colors"
-            >
-              {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            </button>
+            <p className="text-white font-bold text-sm truncate max-w-[70%]">{title}</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggle}
+                className="w-9 h-9 rounded-full bg-brand flex items-center justify-center text-black hover:bg-brand-hover transition-colors"
+              >
+                {playing
+                  ? <Pause className="w-4 h-4 fill-black" />
+                  : <Play className="w-4 h-4 fill-black ml-0.5" />
+                }
+              </button>
+              <button
+                onClick={() => {
+                  if (!videoRef.current) return;
+                  videoRef.current.muted = !muted;
+                  setMuted(!muted);
+                }}
+                className="text-[#5A6F65] hover:text-white transition-colors"
+              >
+                {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -166,6 +163,7 @@ export default function AIClipCard({
   creatorAddress,
   creatorName: _creatorName,
   tippingEnabled = false,
+  readyToPostKit,
 }: AIClipCardProps) {
   const { address } = useWallet();
 
@@ -173,31 +171,46 @@ export default function AIClipCard({
   const [hovered, setHovered] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showTipModal, setShowTipModal] = useState(false);
+  const [showPostKit, setShowPostKit] = useState(false);
+  const [tipReason, setTipReason] = useState<"download" | "post-kit">("download");
   // true when this wallet has already tipped and unlocked this clip
   const [unlocked, setUnlocked] = useState(false);
   const [downloading, setDownloading] = useState(false);
-
-  // Check localStorage on mount and whenever the wallet address changes
-  useEffect(() => {
-    if (address && tippingEnabled) {
-      setUnlocked(isUnlocked(id, address));
-    }
-  }, [id, address, tippingEnabled]);
 
   useEffect(() => {
     setImgSrc(thumbnail || FALLBACK);
   }, [thumbnail]);
 
-  // Kick off a proxy-routed download so the browser shows a Save dialog
-  // instead of opening the Cloudinary URL in a new tab.
-  const doDownload = (downloadUrl: string) => triggerDownload(downloadUrl, title);
+  // Check on mount (and when address changes) if this clip was previously unlocked
+  useEffect(() => {
+    if (!address) {
+      setUnlocked(false);
+      return;
+    }
+    setUnlocked(isUnlocked(id, address));
+  }, [id, address]);
 
-  // Called when the user clicks Download on an already-unlocked clip
+  const doDownload = (url: string) => {
+    triggerDownload(url, title);
+  };
+
+  // Called when the clip is already unlocked — fetch URL and start download
   const handleDirectDownload = async () => {
-    if (!address || downloading) return;
+    if (readyToPostKit?.downloadUrl) {
+      doDownload(readyToPostKit.downloadUrl);
+      return;
+    }
+    if (!clipUrl && !address) {
+      setShowTipModal(true);
+      return;
+    }
+    if (clipUrl && !tippingEnabled) {
+      doDownload(clipUrl);
+      return;
+    }
     setDownloading(true);
     try {
-      const { downloadUrl } = await getClipDownloadUrl(id, address);
+      const { downloadUrl } = await getClipDownloadUrl(id, address || undefined);
       doDownload(downloadUrl);
     } catch {
       // If for any reason the direct download fails, fall back to the tip modal
@@ -207,10 +220,36 @@ export default function AIClipCard({
     }
   };
 
-  // Called by TipModal once tip + download is confirmed
+  // Opens Post Kit, requiring a creator tip first if tipping is enabled and clip is locked
+  const handleOpenPostKit = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tippingEnabled && !unlocked) {
+      setTipReason("post-kit");
+      setShowTipModal(true);
+      return;
+    }
+    setShowPostKit(true);
+  };
+
+  const handleDownloadClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (tippingEnabled && !unlocked) {
+      setTipReason("download");
+      setShowTipModal(true);
+      return;
+    }
+    handleDirectDownload();
+  };
+
+  // Called by TipModal once tip is confirmed
   const handleTipComplete = (downloadUrl: string) => {
     setUnlocked(true);
-    doDownload(downloadUrl);
+    if (tipReason === "post-kit") {
+      setShowTipModal(false);
+      setShowPostKit(true);
+    } else {
+      doDownload(downloadUrl);
+    }
   };
 
   const timeAgo = (date: string | null) => {
@@ -238,6 +277,21 @@ export default function AIClipCard({
           clipTitle={title}
           onClose={() => setShowTipModal(false)}
           onDownloadReady={handleTipComplete}
+        />
+      )}
+
+      {showPostKit && (
+        <ReadyToPostModal
+          clip={{
+            id,
+            title,
+            thumbnail,
+            clipUrl,
+            duration,
+            platform,
+            readyToPostKit,
+          }}
+          onClose={() => setShowPostKit(false)}
         />
       )}
 
@@ -350,59 +404,82 @@ export default function AIClipCard({
 
           {/* Actions */}
           <div
-            className="flex items-center justify-between pt-1 border-t border-white/[0.04]"
+            className="pt-2 border-t border-white/[0.06] space-y-2"
             onClick={(e) => e.stopPropagation()}
           >
-            {/* Already unlocked — direct download, no tip needed */}
-            {tippingEnabled && unlocked ? (
+            {/* Action Row 1: Ready-to-Post Kit (Locked until creator is tipped) */}
+            {tippingEnabled && !unlocked ? (
               <button
-                onClick={handleDirectDownload}
-                disabled={downloading}
-                className="flex items-center gap-1.5 text-[11px] font-bold text-brand hover:text-[#00e58f] transition-colors disabled:opacity-50"
+                onClick={handleOpenPostKit}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#0D1512] hover:bg-[#13201A] border border-brand/25 hover:border-brand/50 text-gray-200 hover:text-brand text-[11px] font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(0,229,143,0.06)] active:scale-[0.98] group/kit"
+                title="Tip creator 1 XLM to unlock the Ready-to-Post Kit"
               >
-                {downloading ? (
-                  <>
-                    <Download className="w-3 h-3 animate-bounce" />
-                    Downloading…
-                  </>
-                ) : (
-                  <>
-                    <Unlock className="w-3 h-3" />
-                    Download
-                  </>
-                )}
+                <Lock className="w-3.5 h-3.5 text-brand shrink-0 group-hover/kit:scale-110 transition-transform" />
+                <span>Tip to Unlock Post Kit</span>
+                <span className="ml-1 px-1.5 py-0.5 rounded-md bg-white/5 border border-white/10 text-brand text-[8px] font-black">
+                  1 XLM
+                </span>
               </button>
             ) : (
-              /* Tip required or free */
               <button
-                onClick={() => setShowTipModal(true)}
-                className={`flex items-center gap-1.5 text-[11px] font-bold transition-colors ${
-                  tippingEnabled
-                    ? "text-brand hover:text-[#00e58f]"
-                    : "text-[#5A6F65] hover:text-white"
-                }`}
+                onClick={handleOpenPostKit}
+                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-brand/10 hover:bg-brand/20 border border-brand/30 hover:border-brand/50 text-brand text-[11px] font-extrabold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(0,229,143,0.1)] active:scale-[0.98]"
+                title="Open Ready-to-Post Kit with captions & tags"
               >
-                {tippingEnabled ? (
-                  <>
-                    <Lock className="w-3 h-3" />
-                    Tip-to-Save
-                  </>
-                ) : (
-                  <>
-                    <Download className="w-3 h-3" />
-                    Download
-                  </>
+                <Sparkles className="w-3.5 h-3.5 shrink-0" />
+                <span>Ready-to-Post Kit</span>
+                {tippingEnabled && unlocked && (
+                  <span className="ml-1 px-1.5 py-0.5 rounded-md bg-brand/20 text-brand text-[8px] font-black">
+                    UNLOCKED
+                  </span>
                 )}
               </button>
             )}
 
-            {/* Unlocked badge */}
-            {tippingEnabled && unlocked && (
-              <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-brand/10 border border-brand/20">
-                <Unlock className="w-2.5 h-2.5 text-brand" />
-                <span className="text-[8px] font-black text-brand uppercase tracking-wide">Unlocked</span>
-              </div>
-            )}
+            {/* Action Row 2: Download HD & Preview with clear spacing */}
+            <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
+              {/* Download / Tip-to-Download button */}
+              {tippingEnabled && !unlocked ? (
+                <button
+                  onClick={handleDownloadClick}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-brand/30 text-gray-200 hover:text-brand text-[11px] font-bold transition-all active:scale-[0.98]"
+                  title="Tip creator 1 XLM to unlock clip download"
+                >
+                  <Lock className="w-3.5 h-3.5 text-brand shrink-0" />
+                  <span>Tip to Download</span>
+                </button>
+              ) : (
+                <button
+                  onClick={handleDownloadClick}
+                  disabled={downloading}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-brand/30 text-gray-200 hover:text-brand text-[11px] font-bold transition-all disabled:opacity-50 active:scale-[0.98]"
+                  title="Download HD Clip"
+                >
+                  {downloading ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin text-brand shrink-0" />
+                      <span>Downloading…</span>
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-3.5 h-3.5 text-brand shrink-0" />
+                      <span>Download HD</span>
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* Preview button */}
+              <button
+                onClick={() => clipUrl && setShowPreview(true)}
+                disabled={!clipUrl}
+                className="flex items-center justify-center gap-1 py-2 px-3 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-white/20 text-gray-300 hover:text-white text-[11px] font-bold transition-all disabled:opacity-30 active:scale-[0.98]"
+                title={clipUrl ? "Preview clip with audio" : "No preview available"}
+              >
+                <Play className="w-3 h-3 fill-current text-white shrink-0 ml-0.5" />
+                <span>Preview</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

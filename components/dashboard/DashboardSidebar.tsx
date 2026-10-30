@@ -17,29 +17,14 @@ import {
 import { useAuth } from "@/components/AuthProvider";
 import Logo from "@/components/shared/Logo";
 import UserAvatar from "@/components/shared/UserAvatar";
-import apiClient from "@/lib/apiClient";
-
-// Fetch total clip count — reuses the same cache key as the dashboard query
-// so no extra network request is made when the dashboard has already loaded.
-async function fetchClipCount(): Promise<number> {
-  try {
-    const res = await apiClient.get("/clips?page=1&limit=1");
-    // Backend returns { data: [...], total, page, limit } or plain array
-    if (typeof res.data.total === "number") return res.data.total;
-    if (Array.isArray(res.data)) return res.data.length;
-    if (Array.isArray(res.data.data)) return res.data.total ?? res.data.data.length;
-    return 0;
-  } catch {
-    return 0;
-  }
-}
+import { getUserClipCount } from "@/lib/queries";
 
 const staticMenuItems = [
   { id: "dashboard",         label: "Dashboard",        icon: LayoutDashboard, href: "/dashboard" },
   { id: "ai-projects",       label: "AI Projects",      icon: Sparkles,        href: "/ai-projects" },
   // "projects" is injected conditionally below when the user has clips
   { id: "agent-marketplace", label: "Agent Marketplace",icon: Bot,             href: "/agent-marketplace" },
-  { id: "platforms",         label: "Platforms",        icon: Share2,          href: "/platforms" },
+  { id: "platforms",         label: "Auto-Posting",     icon: Share2,          href: "/platforms" },
   { id: "settings",          label: "Settings",         icon: Settings,        href: "/settings" },
 ];
 
@@ -55,10 +40,10 @@ export default function DashboardSidebar({ isOpen, onClose }: SidebarProps) {
   const { user, logout } = useAuth();
 
   const { data: clipCount = 0 } = useQuery({
-    queryKey: ["sidebarClipCount"],
-    queryFn: fetchClipCount,
-    // Refresh every 60s — no need to poll aggressively for a nav item
-    staleTime: 60_000,
+    queryKey: ["userClipCount"],
+    queryFn: getUserClipCount,
+    // Refresh every 30s
+    staleTime: 30_000,
     refetchOnWindowFocus: true,
   });
 
@@ -71,7 +56,7 @@ export default function DashboardSidebar({ isOpen, onClose }: SidebarProps) {
         staticMenuItems[1], // AI Projects
         projectsItem,       // Projects  ← only shown when clips exist
         staticMenuItems[2], // Agent Marketplace
-        staticMenuItems[3], // Platforms
+        staticMenuItems[3], // Auto-Posting (Platforms)
         staticMenuItems[4], // Settings
       ]
     : staticMenuItems;
@@ -109,7 +94,12 @@ export default function DashboardSidebar({ isOpen, onClose }: SidebarProps) {
                   {clipCount > 99 ? "99+" : clipCount}
                 </span>
               )}
-              {isActive && item.id !== "projects" && (
+              {item.id === "platforms" && (
+                <span className="ml-auto px-2 py-0.5 rounded-full bg-brand/10 border border-brand/20 text-brand text-[9px] font-black uppercase tracking-wider">
+                  Coming Soon
+                </span>
+              )}
+              {isActive && item.id !== "projects" && item.id !== "platforms" && (
                 <div className="ml-auto w-1.5 h-1.5 rounded-full bg-brand shadow-[0_0_8px_rgba(0,229,143,0.8)]" />
               )}
             </Link>

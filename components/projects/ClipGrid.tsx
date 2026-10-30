@@ -3,6 +3,7 @@
 import React from "react";
 import ClipCard from "./ClipCard";
 import { ListFilter, ChevronDown } from "lucide-react";
+import { ReadyToPostKit } from "@/lib/queries";
 
 interface Clip {
   id: string;
@@ -12,6 +13,7 @@ interface Clip {
   score: number;
   scoreKey: string;
   duration: string;
+  readyToPostKit?: ReadyToPostKit | null;
 }
 
 interface ClipGridProps {

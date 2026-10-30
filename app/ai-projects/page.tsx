@@ -71,6 +71,7 @@ async function getAllClips() {
       creatorAddress,
       creatorName,
       tippingEnabled: clip.tippingEnabled ?? (ownerObj?.walletConnected ? true : false),
+      readyToPostKit: clip.readyToPostKit || null,
     };
   });
 

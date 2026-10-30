@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { saveActiveJob } from "@/lib/processingStore";
+import { markFreeJobAsClaimed } from "@/lib/freeJobStore";
 import apiClient from "@/lib/apiClient";
 import { uploadToCloudinary } from "@/lib/uploadToCloudinary";
 
@@ -321,6 +322,7 @@ export function useYouTubeImport() {
 
         // ── Step 5: Done ──────────────────────────────────────────────────────
         saveActiveJob(uploadResult.videoId);
+        markFreeJobAsClaimed();
         set({
           phase:         "done",
           progress:      100,
@@ -362,6 +364,7 @@ export function useYouTubeImport() {
           }
 
           saveActiveJob(String(backendVideoId));
+          markFreeJobAsClaimed();
           set({
             phase:         "done",
             progress:      100,

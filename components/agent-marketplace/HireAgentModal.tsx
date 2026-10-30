@@ -1,10 +1,12 @@
 "use client";
 
-import React, { useState, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import {
   X, Bot, Link2, Loader2,
-  AlertCircle, Wallet, CreditCard, Zap,
-  Upload, Film, Check, Sparkles,
+  Wallet, CreditCard, Zap,
+  Upload, Film, Check, Sparkles, Gift,
+  AlertCircle,
 } from "lucide-react";
 import { useWallet } from "@/components/WalletProvider";
 import { useAuth } from "@/components/AuthProvider";
@@ -15,12 +17,12 @@ import { uploadToCloudinary, type CloudinaryUploadResult } from "@/lib/uploadToC
 import {
   buildAgentPaymentXdr, hireAgent,
   buildSubscriptionPaymentXdr, activateSubscription,
-  getMySubscription,
+  getMySubscription, checkUserHasEverClipped,
   type Agent, type AgentJob, type StellarSubscription,
 } from "@/lib/queries";
+import { markFreeJobAsClaimed, useFreeJobClaimed } from "@/lib/freeJobStore";
 import apiClient from "@/lib/apiClient";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
 import { saveActiveJob } from "@/lib/processingStore";
 
 interface HireAgentModalProps {
@@ -39,19 +41,16 @@ const PLANS = [
 ];
 
 type PayMode    = "pay-per-job" | "subscription";
-type VideoSource = "upload" | "url";
 type Step       = "config" | "uploading" | "payment" | "signing" | "submitting" | "done" | "error";
 
 export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAgentModalProps) {
+  const router        = useRouter();
   const { address }   = useWallet();
   const { user }      = useAuth();
   const { toast }     = useToast();
   const queryClient   = useQueryClient();
-  const router        = useRouter();
   const fileInputRef  = useRef<HTMLInputElement>(null);
 
-  const [videoSource,    setVideoSource]    = useState<VideoSource>("upload");
-  const [videoUrl,       setVideoUrl]       = useState("");
   const [selectedFile,   setSelectedFile]   = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [style,          setStyle]          = useState<Style>("viral");
@@ -66,17 +65,33 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
     staleTime: 30_000,
   });
 
+  const { data: hasEverClipped = false, isLoading: checkingHistory } = useQuery<boolean>({
+    queryKey: ["userHasEverClipped"],
+    queryFn:  checkUserHasEverClipped,
+    staleTime: 15_000,
+  });
+
   const hasActiveSub = subscription?.status === "ACTIVE";
 
-  const isValidUrl = (v: string) => {
-    try { new URL(v); return true; } catch { return false; }
-  };
+  const userIdentifiers = [user?.id, user?.email, address];
+  const isClaimed = useFreeJobClaimed(userIdentifiers);
 
-  // The effective video URL — either the typed URL or the Cloudinary URL after upload
-  const effectiveUrl = videoSource === "url" ? videoUrl.trim() : "";
+  useEffect(() => {
+    if (hasEverClipped) {
+      markFreeJobAsClaimed([user?.id, user?.email, address]);
+    }
+  }, [hasEverClipped, user?.id, user?.email, address]);
+
+  const isFirstFreeJob =
+    !checkingHistory &&
+    !hasActiveSub &&
+    !isClaimed &&
+    !hasEverClipped;
+
+  // First-time users do NOT need a wallet connected if they are logged in with email
   const canSubmit =
-    !!address &&
-    (videoSource === "upload" ? !!selectedFile : isValidUrl(effectiveUrl));
+    (isFirstFreeJob ? (!!address || !!user) : !!address) &&
+    !!selectedFile;
 
   // ── File select ────────────────────────────────────────────────────────────
 
@@ -109,8 +124,7 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
     return cloudResult;
   };
 
-  // ── Core hire & payment transaction flow ──────────────────────────────────
-  // The transaction MUST succeed here before any video clipping is permitted.
+  // ── Core hire & payment transaction flow (Paid attempts only) ─────────────
 
   const runHireFlow = async (resolvedUrl: string) => {
     // Pre-flight: verify the user's wallet has a USDC trustline.
@@ -125,7 +139,11 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
       setStep("payment");
 
       // 1. Build unsigned USDC XDR
-      const { xdr } = await buildAgentPaymentXdr({ senderAddress: address!, videoUrl: resolvedUrl, style });
+      const { xdr } = await buildAgentPaymentXdr({
+        senderAddress: address!,
+        videoUrl: resolvedUrl,
+        style,
+      });
 
       // 2. Sign in wallet
       setStep("signing");
@@ -137,7 +155,12 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
       await submitToStellar(signedXdr);
 
       // 4. Hire agent on backend
-      const job = await hireAgent({ senderAddress: address!, videoUrl: resolvedUrl, style, signedXdr });
+      const job = await hireAgent({
+        senderAddress: address!,
+        videoUrl: resolvedUrl,
+        style,
+        signedXdr,
+      });
       return job;
     } else {
       // Subscription flow
@@ -168,12 +191,12 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
     }
   };
 
-  // ── Initiate AI video clipping (allowed ONLY after transaction succeeds) ─
+  // ── Initiate AI video clipping ─────────────────────────────────────────────
 
   const startAgentClipProcessing = async (
     resolvedUrl: string,
     cloudResult: CloudinaryUploadResult | null,
-    job: AgentJob
+    job: AgentJob | null
   ): Promise<string> => {
     // 1. If backend's hireAgent endpoint already created the video record
     const existingVideoId =
@@ -187,7 +210,7 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
     }
 
     // 2. Register video with backend to trigger clipping
-    if (videoSource === "upload" && cloudResult) {
+    if (cloudResult) {
       const regRes = await apiClient.post("/videos/register", {
         cloudinaryUrl: cloudResult.secureUrl,
         publicId:      cloudResult.publicId,
@@ -206,89 +229,110 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
 
       if (!videoId) throw new Error("Video uploaded but backend did not return video ID.");
       return String(videoId);
-    } else {
-      const res = await apiClient.post("/videos/from-url", {
-        url:             resolvedUrl,
-        style,
-        targetPlatforms: [],
-      });
-
-      const videoId =
-        res.data?.video?.id ??
-        res.data?.id        ??
-        res.data?.data?.id  ??
-        null;
-
-      if (!videoId) throw new Error("Backend did not return a video ID for processing.");
-      return String(videoId);
     }
+
+    throw new Error("Please select a video file to upload.");
   };
 
   // ── Submit handler ─────────────────────────────────────────────────────────
 
   const handleSubmit = async () => {
-    if (!address) { toast("Connect your Stellar wallet first.", "error"); return; }
+    if (!isFirstFreeJob && !address) {
+      toast("Connect your Stellar wallet first to pay for this job.", "error");
+      return;
+    }
+    if (!address && !user) {
+      toast("Please sign in or create an account first.", "error");
+      return;
+    }
+    if (!selectedFile) {
+      toast("Please select a video file first.", "error");
+      return;
+    }
 
     try {
-      let resolvedUrl = effectiveUrl;
-      let cloudResult: CloudinaryUploadResult | null = null;
+      // Step A: Upload file to Cloudinary storage
+      const cloudResult = await uploadVideoToCloudinary();
+      const resolvedUrl = cloudResult.secureUrl;
 
-      if (videoSource === "upload") {
-        if (!selectedFile) {
-          toast("Please select a video file first.", "error");
-          return;
+      if (isFirstFreeJob && payMode === "pay-per-job") {
+        // ── Step B1: Free 1st Job — skip on-chain payment entirely ──
+        setStep("submitting");
+
+        // Register video directly to start AI clipping
+        const videoId = await startAgentClipProcessing(resolvedUrl, cloudResult, null);
+
+        // Mark free job as claimed for this user across all account identifiers & device
+        markFreeJobAsClaimed(userIdentifiers);
+
+        // Invalidate queries so UI knows clips are created
+        queryClient.invalidateQueries({ queryKey: ["userHasEverClipped"] });
+        queryClient.invalidateQueries({ queryKey: ["userClipCount"] });
+        queryClient.invalidateQueries({ queryKey: ["sidebarClipCount"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+        queryClient.invalidateQueries({ queryKey: ["projectsData"] });
+        queryClient.invalidateQueries({ queryKey: ["agentJobs"] });
+
+        if (videoId) {
+          saveActiveJob(videoId);
         }
-        // Step A: Upload file to Cloudinary storage ONLY
-        // Note: This does NOT initiate any backend clipping or agent processing!
-        cloudResult = await uploadVideoToCloudinary();
-        resolvedUrl = cloudResult.secureUrl;
-      } else {
-        if (!isValidUrl(resolvedUrl)) {
-          toast("Please enter a valid video URL.", "error");
-          return;
-        }
+
+        toast("✨ Free Agent Job started! Your video is being processed into viral clips.", "success");
+        onClose();
+        if (videoId) onJobCreated(Number(videoId) || 1);
+        return;
       }
 
-      // ── Step B: Execute payment transaction first ──
-      // Agent is ONLY allowed to cut clips if transaction is successful!
-      // If transaction fails or user rejects, execution throws and stops immediately.
+      // ── Step B2: Paid Flow — execute payment transaction first ──
       const job = await runHireFlow(resolvedUrl);
 
-      // ── Step C: Transaction SUCCEEDED! Now agent is allowed to cut clips ──
+      // ── Step C: Transaction confirmed! Now start clipping ──
       setStep("done");
 
       let videoId: string | null = null;
       try {
         videoId = await startAgentClipProcessing(resolvedUrl, cloudResult, job);
       } catch (clipErr: any) {
-        console.error("Failed to start clip processing after payment:", clipErr);
+        console.error("Failed to start clip processing:", clipErr);
+        queryClient.invalidateQueries({ queryKey: ["userClipCount"] });
         queryClient.invalidateQueries({ queryKey: ["agentJobs"] });
         if (job?.id) onJobCreated(job.id);
         const clipMsg = clipErr?.response?.data?.message ?? clipErr?.message ?? "Failed to initialize clipping.";
         throw new Error(
-          `Payment confirmed (Job #${job.id}), but video clipping failed to start: ${
+          `Video clipping failed to start: ${
             Array.isArray(clipMsg) ? clipMsg[0] : clipMsg
           }`
         );
       }
 
+      queryClient.invalidateQueries({ queryKey: ["userClipCount"] });
+      queryClient.invalidateQueries({ queryKey: ["sidebarClipCount"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboardData"] });
+      queryClient.invalidateQueries({ queryKey: ["projectsData"] });
       queryClient.invalidateQueries({ queryKey: ["agentJobs"] });
-      queryClient.invalidateQueries({ queryKey: ["projects"] });
       if (job?.id) onJobCreated(job.id);
 
-      // Payment confirmed and clipping initiated — navigate straight to processing page
-      if (videoId) {
-        saveActiveJob(videoId);
-        onClose();
-        router.push(`/dashboard/processing?videoId=${videoId}`);
-      } else {
-        toast("Agent hired and clipping job started!", "success");
-        onClose();
+      const finalVideoId = videoId || (job?.id ? String(job.id) : null);
+      if (finalVideoId) {
+        saveActiveJob(finalVideoId);
+      }
+
+      toast("Payment confirmed! Taking you to the AI analysis…", "success");
+      onClose();
+
+      if (finalVideoId) {
+        router.push(`/dashboard/processing?videoId=${finalVideoId}`);
       }
     } catch (err: any) {
       console.error("[HireAgentModal] Error during hire flow:", err);
-      const msg = err?.response?.data?.message ?? err?.message ?? "Something went wrong.";
-      setErrMsg(Array.isArray(msg) ? msg[0] : msg);
+      const rawMsg = err?.response?.data?.message ?? err?.message ?? "Something went wrong.";
+      const status = err?.response?.status;
+      let msg = Array.isArray(rawMsg) ? rawMsg[0] : rawMsg;
+
+      if (status === 500 && (typeof msg !== "string" || msg.toLowerCase().includes("internal server error"))) {
+        msg = "The backend failed to process transaction (500). Please check your wallet balance or try again.";
+      }
+      setErrMsg(msg);
       setStep("error");
     }
   };
@@ -340,8 +384,44 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
           {/* ── Config step ── */}
           {step === "config" && (
             <>
-              {/* Wallet status */}
-              {!address ? (
+              {/* Wallet status / Free Welcome status */}
+              {isFirstFreeJob ? (
+                <div className="p-4 rounded-[18px] bg-gradient-to-r from-brand/15 via-[#0E1B15] to-[#0A100D] border border-brand/30 space-y-2.5">
+                  <div className="flex items-start gap-3">
+                    <div className="w-9 h-9 rounded-xl bg-brand/20 border border-brand/30 flex items-center justify-center shrink-0 mt-0.5 shadow-[0_0_12px_rgba(0,229,143,0.2)]">
+                      <Sparkles className="w-4 h-4 text-brand" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-[13px] font-extrabold text-white">First Agent Job is 100% Free!</p>
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-brand text-black uppercase tracking-wider">
+                          Welcome Credit
+                        </span>
+                      </div>
+                      <p className="text-[12px] text-[#8E9895] mt-1 leading-relaxed">
+                        As a new creator, your first video clipping job is completely free—no 0.50 USDC fee or wallet payment required.
+                      </p>
+                    </div>
+                  </div>
+                  {user?.email && (
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-[#5A6F65] font-mono border-t border-white/5">
+                      <span className="flex items-center gap-1.5 text-brand">
+                        <Check className="w-3.5 h-3.5" /> Account: {user.email}
+                      </span>
+                      <span className="text-[10px] text-brand/80 font-bold uppercase tracking-wider">
+                        Free Trial Active
+                      </span>
+                    </div>
+                  )}
+                  {address && !user?.email && (
+                    <div className="flex items-center justify-between pt-1 text-[11px] text-[#5A6F65] font-mono border-t border-white/5">
+                      <span className="flex items-center gap-1.5 text-brand">
+                        <Check className="w-3.5 h-3.5 text-brand" /> Wallet linked: {address.slice(0, 6)}…{address.slice(-4)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              ) : !address ? (
                 <div className="p-4 rounded-[18px] bg-[#0E1512] border border-amber-400/20 shadow-[0_4px_20px_rgba(0,0,0,0.3)] space-y-3">
                   <div className="flex items-start gap-3">
                     <div className="w-9 h-9 rounded-xl bg-amber-400/10 border border-amber-400/20 flex items-center justify-center shrink-0 mt-0.5">
@@ -360,9 +440,7 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
                         )}
                       </div>
                       <p className="text-[12px] text-[#8E9895] mt-1 leading-relaxed">
-                        {user?.email
-                          ? "You are signed in with email. Connect or add a Stellar wallet (e.g. Freighter, Lobstr) to pay in USDC and hire this agent."
-                          : "Connect or add a Stellar wallet (e.g. Freighter, Lobstr) to pay in USDC and hire this agent."}
+                        To hire this agent for paid clipping jobs ($0.50 USDC), connect your Stellar wallet (Freighter, Lobstr) to sign transactions.
                       </p>
                     </div>
                   </div>
@@ -398,104 +476,80 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
                 </div>
               )}
 
-              {/* ── Video source toggle ── */}
+              {/* ── Video source selector (URL upload disabled per requirements) ── */}
               <div className="space-y-3">
                 <label className="text-[12px] font-bold text-[#5A6F65] uppercase tracking-wider">
                   Video Source
                 </label>
                 <div className="grid grid-cols-2 gap-2">
-                  <button
-                    onClick={() => setVideoSource("upload")}
-                    className={`flex items-center gap-2.5 px-4 py-3 rounded-[14px] border text-left transition-all ${
-                      videoSource === "upload"
-                        ? "bg-brand/8 border-brand/40 text-white"
-                        : "bg-[#0B100E] border-white/8 text-[#5A6F65] hover:border-white/20 hover:text-white"
-                    }`}
-                  >
-                    <Upload className={`w-4 h-4 shrink-0 ${videoSource === "upload" ? "text-brand" : "text-[#3A4A43]"}`} />
+                  <div className="flex items-center gap-2.5 px-4 py-3 rounded-[14px] border border-brand/40 bg-brand/8 text-white select-none">
+                    <Upload className="w-4 h-4 shrink-0 text-brand" />
                     <div>
                       <p className="text-[13px] font-bold leading-tight">Upload File</p>
-                      <p className="text-[10px] text-[#3A4A43] mt-0.5">MP4, MOV, WEBM</p>
+                      <p className="text-[10px] text-brand/70 mt-0.5">MP4, MOV, WEBM</p>
                     </div>
-                  </button>
-                  <button
-                    onClick={() => setVideoSource("url")}
-                    className={`flex items-center gap-2.5 px-4 py-3 rounded-[14px] border text-left transition-all ${
-                      videoSource === "url"
-                        ? "bg-brand/8 border-brand/40 text-white"
-                        : "bg-[#0B100E] border-white/8 text-[#5A6F65] hover:border-white/20 hover:text-white"
-                    }`}
+                  </div>
+                  <div
+                    className="flex items-center gap-2.5 px-4 py-3 rounded-[14px] border border-white/5 bg-[#0B100E]/50 text-[#3A4A43] cursor-not-allowed select-none opacity-50 relative"
+                    title="URL upload is disabled on Hire Agent"
                   >
-                    <Link2 className={`w-4 h-4 shrink-0 ${videoSource === "url" ? "text-brand" : "text-[#3A4A43]"}`} />
-                    <div>
-                      <p className="text-[13px] font-bold leading-tight">Video URL</p>
-                      <p className="text-[10px] text-[#3A4A43] mt-0.5">YouTube, Vimeo…</p>
+                    <Link2 className="w-4 h-4 shrink-0 text-[#3A4A43]" />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[13px] font-bold leading-tight text-[#5A6F65]">Video URL</p>
+                        <span className="text-[8px] font-black uppercase px-1.5 py-0.5 rounded bg-white/5 text-[#5A6F65]">Disabled</span>
+                      </div>
+                      <p className="text-[10px] text-[#3A4A43] mt-0.5 truncate">Upload file directly</p>
                     </div>
-                  </button>
+                  </div>
                 </div>
               </div>
 
               {/* ── File upload area ── */}
-              {videoSource === "upload" && (
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="video/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className={`w-full border-2 border-dashed rounded-[20px] p-6 flex flex-col items-center gap-3 transition-all group ${
-                      selectedFile
-                        ? "border-brand/40 bg-brand/5"
-                        : "border-white/8 bg-[#0B100E] hover:border-brand/30 hover:bg-brand/[0.03]"
-                    }`}
-                  >
-                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${
-                      selectedFile
-                        ? "bg-brand/10 border-brand/30"
-                        : "bg-[#111815] border-white/8 group-hover:border-brand/20"
-                    }`}>
-                      {selectedFile
-                        ? <Check className="w-5 h-5 text-brand" />
-                        : <Upload className="w-5 h-5 text-[#3A4A43] group-hover:text-brand transition-colors" />
-                      }
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="video/*"
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`w-full border-2 border-dashed rounded-[20px] p-6 flex flex-col items-center gap-3 transition-all group ${
+                    selectedFile
+                      ? "border-brand/40 bg-brand/5"
+                      : "border-white/8 bg-[#0B100E] hover:border-brand/30 hover:bg-brand/[0.03]"
+                  }`}
+                >
+                  <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center transition-all ${
+                    selectedFile
+                      ? "bg-brand/10 border-brand/30"
+                      : "bg-[#111815] border-white/8 group-hover:border-brand/20"
+                  }`}>
+                    {selectedFile
+                      ? <Check className="w-5 h-5 text-brand" />
+                      : <Upload className="w-5 h-5 text-[#3A4A43] group-hover:text-brand transition-colors" />
+                    }
+                  </div>
+                  {selectedFile ? (
+                    <div className="text-center">
+                      <p className="text-[13px] font-bold text-white truncate max-w-[260px]">
+                        {selectedFile.name}
+                      </p>
+                      <p className="text-[11px] text-[#5A6F65] mt-0.5">
+                        {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB · Click to change
+                      </p>
                     </div>
-                    {selectedFile ? (
-                      <div className="text-center">
-                        <p className="text-[13px] font-bold text-white truncate max-w-[260px]">
-                          {selectedFile.name}
-                        </p>
-                        <p className="text-[11px] text-[#5A6F65] mt-0.5">
-                          {(selectedFile.size / (1024 * 1024)).toFixed(1)} MB · Click to change
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="text-center">
-                        <p className="text-[13px] font-bold text-white">Click to select a video</p>
-                        <p className="text-[11px] text-[#3A4A43] mt-0.5">MP4, MOV, WEBM up to 2 GB</p>
-                      </div>
-                    )}
-                  </button>
-                </div>
-              )}
-
-              {/* ── URL input ── */}
-              {videoSource === "url" && (
-                <div className="relative">
-                  <Link2 className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-[#3A4A43]" />
-                  <input
-                    type="url"
-                    value={videoUrl}
-                    onChange={(e) => setVideoUrl(e.target.value)}
-                    placeholder="https://youtube.com/watch?v=…"
-                    className="w-full bg-[#0B100E] border border-white/8 focus:border-brand/40 rounded-[14px] pl-12 pr-4 py-3 text-[14px] text-white placeholder-[#3A4A43] outline-none transition-all focus:ring-2 focus:ring-brand/10"
-                  />
-                </div>
-              )}
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-[13px] font-bold text-white">Click to select video file</p>
+                      <p className="text-[11px] text-[#3A4A43] mt-0.5">MP4, MOV, WEBM up to 500 MB</p>
+                    </div>
+                  )}
+                </button>
+              </div>
 
               {/* ── Clip Style ── */}
               <div className="space-y-2">
@@ -529,11 +583,30 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
                         : "bg-[#0B100E] border-white/8 hover:border-white/20"
                     }`}
                   >
-                    <CreditCard className={`w-5 h-5 mb-2 ${payMode === "pay-per-job" ? "text-brand" : "text-[#3A4A43]"}`} />
+                    <div className="flex items-center justify-between mb-2">
+                      {isFirstFreeJob ? (
+                        <Gift className="w-5 h-5 text-brand" />
+                      ) : (
+                        <CreditCard className={`w-5 h-5 ${payMode === "pay-per-job" ? "text-brand" : "text-[#3A4A43]"}`} />
+                      )}
+                      {isFirstFreeJob && (
+                        <span className="px-1.5 py-0.5 rounded-md bg-brand/20 text-brand text-[9px] font-black uppercase tracking-wider">
+                          FREE
+                        </span>
+                      )}
+                    </div>
                     <p className={`text-[13px] font-bold ${payMode === "pay-per-job" ? "text-white" : "text-[#5A6F65]"}`}>
-                      Pay per Job
+                      {isFirstFreeJob ? "1st Job Free" : "Pay per Job"}
                     </p>
-                    <p className="text-[11px] text-[#3A4A43] mt-0.5">$0.50 USDC / job</p>
+                    <p className="text-[11px] text-[#3A4A43] mt-0.5">
+                      {isFirstFreeJob ? (
+                        <span className="text-brand font-bold">
+                          $0.00 USDC <span className="line-through text-[#5A6F65] text-[10px] ml-1 font-normal">$0.50</span>
+                        </span>
+                      ) : (
+                        "$0.50 USDC / job"
+                      )}
+                    </p>
                   </button>
                   <button
                     onClick={() => setPayMode("subscription")}
@@ -583,9 +656,13 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
                 disabled={!canSubmit}
                 className="w-full py-4 rounded-[16px] bg-brand hover:bg-brand-hover text-black font-bold text-[15px] transition-all active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed shadow-[0_0_20px_rgba(0,229,143,0.15)]"
               >
-                {!address
+                {isFirstFreeJob && payMode === "pay-per-job"
+                  ? selectedFile
+                    ? "Upload & Generate Free Clip ✨"
+                    : "Select a Video File to Generate Free Clip ✨"
+                  : !address
                   ? "Connect Wallet to Hire"
-                  : videoSource === "upload" && selectedFile
+                  : selectedFile
                   ? payMode === "pay-per-job"
                     ? "Upload & Pay $0.50 USDC"
                     : hasActiveSub
@@ -632,49 +709,62 @@ export default function HireAgentModal({ agent, onClose, onJobCreated }: HireAge
                   ? "Building transaction…"
                   : step === "signing"
                   ? "Waiting for wallet signature…"
+                  : isFirstFreeJob
+                  ? "Activating your free agent job…"
                   : "Submitting to Stellar network…"}
               </p>
               <p className="text-[#5A6F65] text-[13px] max-w-xs leading-relaxed">
                 {step === "signing"
                   ? "Please confirm the transaction in your Stellar wallet (Freighter, Lobstr, etc.)"
                   : step === "submitting"
-                  ? "Broadcasting your USDC payment to the Stellar testnet…"
+                  ? isFirstFreeJob
+                    ? "Initializing AI clipping with your welcome credit…"
+                    : "Broadcasting your USDC payment to the Stellar network…"
                   : "Preparing your USDC payment on the Stellar network…"}
               </p>
             </div>
           )}
 
-          {/* ── Done — navigating to processing (brief flash) ── */}
+          {/* ── Done ── */}
           {step === "done" && (
             <div className="flex flex-col items-center justify-center py-12 space-y-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center">
-                <Sparkles className="w-8 h-8 text-brand animate-pulse" />
+              <div className="w-14 h-14 rounded-full bg-brand/10 border border-brand/20 flex items-center justify-center">
+                <Check className="w-7 h-7 text-brand" />
               </div>
-              <p className="text-white font-extrabold text-[18px]">Payment confirmed!</p>
-              <p className="text-[#5A6F65] text-[13px]">Taking you to AI processing…</p>
-              <Loader2 className="w-5 h-5 text-brand animate-spin" />
+              <p className="text-white font-bold text-[16px]">Job Started!</p>
+              <p className="text-[#5A6F65] text-[13px]">Your AI agent has begun processing clips.</p>
             </div>
           )}
 
-          {/* ── Error ── */}
+          {/* ── Error step ── */}
           {step === "error" && (
-            <div className="flex flex-col items-center justify-center py-10 space-y-4 text-center">
-              <div className="w-16 h-16 rounded-full bg-red-400/10 border border-red-400/20 flex items-center justify-center">
-                <AlertCircle className="w-8 h-8 text-red-400" />
+            <div className="py-6 space-y-5 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-red-500/10 border border-red-500/20 flex items-center justify-center mx-auto">
+                <AlertCircle className="w-6 h-6 text-red-400" />
               </div>
-              <p className="text-white font-bold text-[16px]">Transaction Failed</p>
-              <p className="text-red-300 text-[13px] max-w-xs leading-relaxed">{errMsg}</p>
-              <p className="text-[#5A6F65] text-[12px] max-w-xs">
-                All process was stopped. No video clips were generated.
-              </p>
-              <button
-                onClick={() => { setStep("config"); setUploadProgress(0); }}
-                className="px-6 py-3 rounded-[14px] bg-[#0B100E] border border-white/10 text-white font-bold text-[14px] hover:border-white/20 transition-all"
-              >
-                Try again
-              </button>
+              <div className="space-y-1">
+                <p className="text-white font-bold text-[15px]">Failed to start job</p>
+                <p className="text-[#8E9895] text-[12px] max-w-sm mx-auto leading-relaxed">
+                  {errMsg || "An unexpected error occurred. Please try again."}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setStep("config")}
+                  className="flex-1 py-3 rounded-[14px] bg-[#0B100E] border border-white/10 hover:border-white/20 text-white font-bold text-[13px] transition-all"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  className="flex-1 py-3 rounded-[14px] bg-brand hover:bg-brand-hover text-black font-bold text-[13px] transition-all"
+                >
+                  Try Again
+                </button>
+              </div>
             </div>
           )}
+
         </div>
       </div>
     </div>

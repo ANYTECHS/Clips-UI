@@ -62,6 +62,16 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
         const response = await apiClient.get("/users/me");
         let userData = response.data;
         if (userData && typeof window !== "undefined") {
+          if (userData.id) {
+            localStorage.setItem("clipcash_current_user_id", String(userData.id));
+          }
+          if (userData.email) {
+            localStorage.setItem("clipcash_current_user_email", String(userData.email).toLowerCase());
+          }
+          if (userData.stellarAddress) {
+            localStorage.setItem("clipcash_current_user_address", String(userData.stellarAddress).toLowerCase());
+          }
+
           const cachedUsername =
             localStorage.getItem(`clipcash_username_${userData.id}`) ||
             localStorage.getItem("clipcash_username");
@@ -138,6 +148,17 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     if (skipRedirect) {
       skipRedirectRef.current = true;
     }
+    if (newUser && typeof window !== "undefined") {
+      if (newUser.id) {
+        localStorage.setItem("clipcash_current_user_id", String(newUser.id));
+      }
+      if (newUser.email) {
+        localStorage.setItem("clipcash_current_user_email", String(newUser.email).toLowerCase());
+      }
+      if (newUser.stellarAddress) {
+        localStorage.setItem("clipcash_current_user_address", String(newUser.stellarAddress).toLowerCase());
+      }
+    }
     const resolvedUsername = newUser?.username || newUser?.profile?.username;
     if (resolvedUsername && typeof window !== "undefined") {
       if (newUser?.id) {
@@ -156,6 +177,9 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     } finally {
       if (typeof window !== "undefined") {
         localStorage.removeItem("clipcash_username");
+        localStorage.removeItem("clipcash_current_user_id");
+        localStorage.removeItem("clipcash_current_user_email");
+        localStorage.removeItem("clipcash_current_user_address");
       }
       // Disconnect wallet so the address is cleared from the kit and localStorage.
       // This is a no-op if no wallet was connected (email users).

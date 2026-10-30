@@ -3,6 +3,7 @@
 import React, { useState, useMemo } from "react";
 import { Sparkles, TrendingUp, Clock, Zap } from "lucide-react";
 import AIClipCard from "./AIClipCard";
+import { ReadyToPostKit } from "@/lib/queries";
 
 interface Clip {
   id: string;
@@ -17,6 +18,7 @@ interface Clip {
   creatorAddress?: string;
   creatorName?: string;
   tippingEnabled?: boolean;
+  readyToPostKit?: ReadyToPostKit | null;
 }
 
 interface AIProjectsContentProps {
@@ -101,21 +103,20 @@ export default function AIProjectsContent({ clips }: AIProjectsContentProps) {
           <button
             key={key}
             onClick={() => setSort(key)}
-            className={`flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-[12px] font-bold transition-all ${
+            className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[12px] font-bold transition-all ${
               sort === key
-                ? "bg-white/10 border border-white/20 text-white"
-                : "bg-[#0B100E] border border-white/8 text-[#5A6F65] hover:text-white hover:border-white/20"
+                ? "bg-brand text-black shadow-[0_0_20px_rgba(0,229,143,0.25)]"
+                : "bg-[#0B100E] border border-white/5 text-[#5A6F65] hover:text-white hover:border-white/10"
             }`}
           >
             <Icon className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{label}</span>
+            <span>{label}</span>
           </button>
         ))}
       </div>
 
-
       {/* ── Grid ── */}
-      {clips.length === 0 ? (
+      {filtered.length === 0 ? (
         <EmptyState totalClips={clips.length} />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 pb-16">

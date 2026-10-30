@@ -12,8 +12,11 @@ import {
   Volume2,
   VolumeX,
   Pause,
+  Sparkles,
 } from "lucide-react";
 import { triggerDownload } from "@/lib/download";
+import ReadyToPostModal from "@/components/shared/ReadyToPostModal";
+import { ReadyToPostKit } from "@/lib/queries";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -28,6 +31,7 @@ interface ClipCardProps {
   isSelected: boolean;
   onSelect: (id: string) => void;
   onDelete?: (id: string) => Promise<void>;
+  readyToPostKit?: ReadyToPostKit | null;
 }
 
 const FALLBACK_IMG =
@@ -96,44 +100,66 @@ function VideoModal({
           <video
             ref={videoRef}
             src={clipUrl}
-            className="max-w-full max-h-[70vh] object-contain"
+            className="max-w-full max-h-[75vh] object-contain cursor-pointer"
+            onClick={togglePlay}
             onTimeUpdate={handleTimeUpdate}
             onEnded={() => setPlaying(false)}
             muted={muted}
             playsInline
-            // No autoplay — requires user gesture so browser allows audio
           />
-          <div
-            className="absolute inset-0 flex items-center justify-center cursor-pointer"
-            onClick={togglePlay}
-          >
-            <div className={`w-14 h-14 rounded-full bg-white/10 border border-white/20 flex items-center justify-center backdrop-blur-xl transition-opacity duration-200 ${playing ? "opacity-0 hover:opacity-100" : "opacity-100"}`}>
-              {playing
-                ? <Pause className="w-6 h-6 text-white fill-white" />
-                : <Play className="w-6 h-6 text-white fill-white ml-1" />
-              }
-            </div>
-          </div>
-        </div>
-
-        <div className="px-4 py-3 space-y-3">
-          <p className="text-white font-bold text-[14px] truncate">{title}</p>
-          <div className="h-1.5 bg-white/10 rounded-full cursor-pointer overflow-hidden" onClick={handleSeek}>
-            <div className="h-full bg-brand rounded-full transition-all duration-100" style={{ width: `${progress}%` }} />
-          </div>
-          <div className="flex items-center justify-between">
+          {!playing && (
             <button
               onClick={togglePlay}
-              className="w-9 h-9 rounded-full bg-brand flex items-center justify-center text-black hover:bg-brand-hover transition-colors"
+              className="absolute inset-0 flex items-center justify-center bg-black/30 group/btn transition-colors"
             >
-              {playing ? <Pause className="w-4 h-4 fill-black" /> : <Play className="w-4 h-4 fill-black ml-0.5" />}
+              <div className="w-16 h-16 rounded-full bg-brand/90 hover:bg-brand flex items-center justify-center shadow-lg transition-transform hover:scale-105">
+                <Play className="w-7 h-7 text-black fill-black ml-1" />
+              </div>
             </button>
-            <button
-              onClick={() => { if (videoRef.current) { videoRef.current.muted = !muted; setMuted(!muted); } }}
-              className="text-[#5A6F65] hover:text-white transition-colors"
-            >
-              {muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
-            </button>
+          )}
+        </div>
+
+        <div className="px-6 py-4 bg-[#0B100E] border-t border-white/5 space-y-3">
+          <div
+            className="relative h-1.5 bg-white/10 rounded-full cursor-pointer overflow-hidden group/bar"
+            onClick={handleSeek}
+          >
+            <div
+              className="absolute top-0 left-0 h-full bg-brand rounded-full transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-white font-bold text-sm truncate max-w-[60%]">{title}</p>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => {
+                  if (videoRef.current) {
+                    videoRef.current.muted = !muted;
+                    setMuted(!muted);
+                  }
+                }}
+                className="text-[#5A6F65] hover:text-white transition-colors"
+                title={muted ? "Unmute" : "Mute"}
+              >
+                {muted ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4" />}
+              </button>
+              <button
+                onClick={togglePlay}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand/10 border border-brand/20 text-brand text-xs font-bold hover:bg-brand/20 transition-colors"
+              >
+                {playing ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5 fill-brand" />}
+                {playing ? "Pause" : "Play with sound"}
+              </button>
+              <button
+                onClick={() => triggerDownload(clipUrl, title)}
+                className="text-[#5A6F65] hover:text-brand transition-colors"
+                title="Download"
+              >
+                <Download className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -154,6 +180,7 @@ export default function ClipCard({
   isSelected,
   onSelect,
   onDelete,
+  readyToPostKit,
 }: ClipCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -173,14 +200,31 @@ export default function ClipCard({
 
   const handleDownload = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!clipUrl) return;
-    triggerDownload(clipUrl, initialTitle);
+    const downloadTarget = readyToPostKit?.downloadUrl || clipUrl;
+    if (!downloadTarget) return;
+    triggerDownload(downloadTarget, initialTitle);
   };
+
+  const [showPostKit, setShowPostKit] = useState(false);
 
   return (
     <>
       {showPreview && clipUrl && (
         <VideoModal clipUrl={clipUrl} title={initialTitle} onClose={() => setShowPreview(false)} />
+      )}
+
+      {showPostKit && (
+        <ReadyToPostModal
+          clip={{
+            id,
+            title: initialTitle,
+            thumbnail,
+            clipUrl,
+            duration,
+            readyToPostKit,
+          }}
+          onClose={() => setShowPostKit(false)}
+        />
       )}
 
       <div
@@ -236,39 +280,66 @@ export default function ClipCard({
         </div>
 
         {/* Content */}
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3.5">
           <div className="space-y-1">
-            <h4 className="text-[13px] font-bold text-white truncate tracking-tight leading-tight">{initialTitle}</h4>
-            <p className="text-[10px] font-medium text-[#5A6F65]">Perfect for TikTok & Reels</p>
+            <h4 className="text-[14px] font-bold text-white truncate tracking-tight leading-tight">
+              {initialTitle}
+            </h4>
+            <p className="text-[11px] font-medium text-[#5A6F65]">
+              Perfect for TikTok, Reels & Shorts
+            </p>
           </div>
 
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleDownload}
-                disabled={!clipUrl}
-                className="text-[#5A6F65] hover:text-white transition-colors disabled:opacity-30"
-                title={clipUrl ? "Download" : "No download available"}
-              >
-                <Download className="w-3 h-3" />
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="text-[#5A6F65] hover:text-red-500 transition-colors disabled:opacity-50"
-                title="Delete"
-              >
-                {isDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-              </button>
-            </div>
+          {/* Action Row 1: Ready-to-Post Kit (Primary Action) */}
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowPostKit(true);
+            }}
+            className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-brand/10 hover:bg-brand/20 border border-brand/25 hover:border-brand/40 text-brand text-[11px] font-extrabold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(0,229,143,0.08)] active:scale-[0.98]"
+            title="Open Ready-to-Post Kit with captions, hashtags & one-click sharing"
+          >
+            <Sparkles className="w-3.5 h-3.5 shrink-0" />
+            <span>Ready-to-Post Kit</span>
+          </button>
 
+          {/* Action Row 2: Download HD, Preview & Delete with clear spacing */}
+          <div className="flex items-center gap-2 pt-1 border-t border-white/[0.06]">
+            {/* Download button */}
+            <button
+              onClick={handleDownload}
+              disabled={!clipUrl && !readyToPostKit?.downloadUrl}
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/10 hover:border-brand/30 text-gray-200 hover:text-brand text-[11px] font-bold transition-all disabled:opacity-30 disabled:cursor-not-allowed active:scale-[0.98]"
+              title={clipUrl || readyToPostKit?.downloadUrl ? "Download HD Clip (MP4)" : "No download available"}
+            >
+              <Download className="w-3.5 h-3.5 text-brand shrink-0" />
+              <span>Download</span>
+            </button>
+
+            {/* Preview button */}
             <button
               onClick={openPreview}
               disabled={!clipUrl}
-              className="text-[10px] font-black text-brand uppercase tracking-widest flex items-center gap-1 hover:underline disabled:opacity-30 disabled:no-underline"
-              title={clipUrl ? "Preview clip" : "No preview available"}
+              className="flex items-center justify-center gap-1 py-2 px-2.5 rounded-xl bg-white/[0.03] hover:bg-white/[0.07] border border-white/10 hover:border-white/20 text-gray-300 hover:text-white text-[11px] font-bold transition-all disabled:opacity-30 active:scale-[0.98]"
+              title={clipUrl ? "Preview clip with audio" : "No preview available"}
             >
-              PREVIEW <span className="text-[12px] leading-none mb-0.5">›</span>
+              <Play className="w-3 h-3 fill-current text-white shrink-0 ml-0.5" />
+              <span>Preview</span>
+            </button>
+
+            {/* Delete button */}
+            <button
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="w-9 h-9 rounded-xl flex items-center justify-center bg-white/[0.03] hover:bg-red-500/10 border border-white/10 hover:border-red-500/30 text-[#8E9895] hover:text-red-400 transition-all disabled:opacity-40 shrink-0 active:scale-[0.95]"
+              title="Delete this clip"
+              aria-label="Delete clip"
+            >
+              {isDeleting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-red-400" />
+              ) : (
+                <Trash2 className="w-3.5 h-3.5" />
+              )}
             </button>
           </div>
         </div>

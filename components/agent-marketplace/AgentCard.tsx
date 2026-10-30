@@ -7,9 +7,10 @@ import type { Agent } from "@/lib/queries";
 interface AgentCardProps {
   agent: Agent;
   onHire: (agent: Agent) => void;
+  isFirstFreeJob?: boolean;
 }
 
-export default function AgentCard({ agent, onHire }: AgentCardProps) {
+export default function AgentCard({ agent, onHire, isFirstFreeJob = false }: AgentCardProps) {
   const shortAddress = (addr: string) =>
     addr ? `${addr.slice(0, 6)}…${addr.slice(-4)}` : "—";
 
@@ -43,7 +44,14 @@ export default function AgentCard({ agent, onHire }: AgentCardProps) {
           <span className="text-[#3A4A43] font-medium flex items-center gap-1.5">
             <Wallet className="w-3.5 h-3.5" /> Price per job
           </span>
-          <span className="text-white font-black">$0.50 USDC</span>
+          {isFirstFreeJob ? (
+            <span className="text-brand font-black flex items-center gap-1.5">
+              <span className="line-through text-[#5A6F65] text-[11px] font-normal">$0.50</span>
+              FREE (1st Job)
+            </span>
+          ) : (
+            <span className="text-white font-black">$0.50 USDC</span>
+          )}
         </div>
         <div className="flex items-center justify-between text-[12px]">
           <span className="text-[#3A4A43] font-medium flex items-center gap-1.5">
@@ -64,7 +72,7 @@ export default function AgentCard({ agent, onHire }: AgentCardProps) {
         onClick={() => onHire(agent)}
         className="w-full py-3 rounded-[14px] bg-brand hover:bg-brand-hover text-black font-bold text-[14px] transition-all active:scale-[0.98] shadow-[0_0_20px_rgba(0,229,143,0.15)] hover:shadow-[0_0_30px_rgba(0,229,143,0.3)]"
       >
-        Hire Agent
+        {isFirstFreeJob ? "Try Agent Free" : "Hire Agent"}
       </button>
     </div>
   );

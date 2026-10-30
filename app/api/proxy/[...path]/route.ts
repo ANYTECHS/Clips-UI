@@ -46,6 +46,9 @@ async function handler(req: NextRequest) {
     if (contentType.includes('application/json') && !['GET', 'HEAD'].includes(req.method)) {
       const text = await req.text();
       body = text;
+      if (path.includes('/stellar/')) {
+        console.log(`[proxy] ${req.method} ${path} payload:`, text);
+      }
     }
 
     // Give the backend up to 45s to respond on non-GET requests. Render's
@@ -137,6 +140,9 @@ async function handler(req: NextRequest) {
   if (backendRes.status >= 400) {
     backendRes.clone().text().then(body => {
       console.error(`[proxy] ${req.method} ${path} → ${backendRes.status}`);
+      if (typeof body === 'string') {
+        console.error('[proxy] sent request body:', body);
+      }
       console.error('[proxy] backend error body:', body);
     }).catch(() => {});
   }

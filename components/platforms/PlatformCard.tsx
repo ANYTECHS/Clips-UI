@@ -15,8 +15,8 @@ interface PlatformCardProps {
   onDisconnected?: (platformKey: string) => void;
 }
 
-export default function PlatformCard({ name, description, icon: Icon, status, ctaText, username, variant = "vertical", onDisconnected }: PlatformCardProps) {
-  const [loading, setLoading] = useState(false);
+export default function PlatformCard({ name, description, icon: Icon, status, ctaText: _ctaText, username, variant = "vertical", onDisconnected }: PlatformCardProps) {
+  const [_loading, _setLoading] = useState(false);
   const [disconnecting, setDisconnecting] = useState(false);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
@@ -25,9 +25,9 @@ export default function PlatformCard({ name, description, icon: Icon, status, ct
   // Normalised platform key: "X / Twitter" → "x", "TikTok" → "tiktok"
   const platformKey = name.toLowerCase().split(" / ")[0].replace(/\s+/g, "");
 
-  const handleConnect = async () => {
+  const _handleConnect = async () => {
     if (isActive) return;
-    setLoading(true);
+    _setLoading(true);
     setConnectError(null);
     try {
       const response = await apiClient.get(`/platforms/connect/${platformKey}`);
@@ -64,7 +64,7 @@ export default function PlatformCard({ name, description, icon: Icon, status, ct
         setConnectError(backendMessage ?? "Failed to connect. Please try again.");
       }
     } finally {
-      setLoading(false);
+      _setLoading(false);
     }
   };
 
@@ -152,11 +152,10 @@ export default function PlatformCard({ name, description, icon: Icon, status, ct
               </div>
             ) : (
               <button
-                onClick={handleConnect}
-                disabled={loading}
-                className="px-6 py-2.5 rounded-xl border border-white/10 text-white font-bold text-[13px] hover:bg-white/[0.05] transition-all active:scale-[0.98] disabled:opacity-50"
+                disabled
+                className="px-6 py-2.5 rounded-xl border border-white/10 bg-white/[0.03] text-[#5A6F65] font-bold text-[13px] cursor-not-allowed select-none"
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : ctaText}
+                Coming Soon
               </button>
             )}
           </div>
@@ -192,11 +191,10 @@ export default function PlatformCard({ name, description, icon: Icon, status, ct
         {/* Primary CTA */}
         {!isActive ? (
           <button
-            onClick={handleConnect}
-            disabled={loading}
-            className="w-full py-4 rounded-xl font-bold text-[14px] transition-all flex items-center justify-center gap-2.5 bg-brand hover:bg-brand-hover text-black shadow-[0_0_20px_rgba(0,229,143,0.2)] hover:shadow-[0_0_35px_rgba(0,229,143,0.35)] active:scale-[0.98] disabled:opacity-50"
+            disabled
+            className="w-full py-4 rounded-xl font-bold text-[14px] flex items-center justify-center gap-2.5 bg-white/[0.04] border border-white/10 text-[#5A6F65] cursor-not-allowed select-none transition-none"
           >
-            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : ctaText}
+            Coming Soon
           </button>
         ) : confirmDisconnect ? (
           <div className="flex flex-col gap-2">
