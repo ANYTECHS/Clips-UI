@@ -2,6 +2,7 @@
 
 import React, { Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter, useSearchParams } from "next/navigation";
 import apiClient from "@/lib/apiClient";
 import DashboardLayout from "@/components/shared/DashboardLayout";
 import AIProjectsContent from "@/components/ai-projects/AIProjectsContent";
@@ -12,31 +13,27 @@ function suggestPlatform(clip: any): string {
   const duration = clip.duration || 0;
   const score = clip.viralScore ?? clip.score ?? 0;
   
-  // Short clips (< 30s) are perfect for TikTok
   if (duration < 30) return "TikTok";
-  
-  // Medium clips (30-60s) work well for YouTube Shorts
   if (duration >= 30 && duration < 60) return "YouTube Shorts";
-  
-  // Longer clips (60-120s) are good for Instagram Reels
   if (duration >= 60 && duration < 120) return "Instagram Reels";
-  
-  // High viral score clips are great for multiple platforms
   if (score >= 80) return "Multi-Platform";
-  
-  // Default to TikTok for most AI-generated clips
   return "TikTok";
 }
 
-async function getAllClips() {
-  const response = await apiClient.get("/clips/feed?page=1&limit=100");
-  const raw = response.data.data ?? (Array.isArray(response.data) ? response.data : []);
-
-  if (raw.length > 0) {
-    console.log("[feed] sample clip keys:", Object.keys(raw[0]));
-    console.log("[feed] sample owner field:", JSON.stringify(raw[0].owner ?? raw[0].creatorAddress ?? "none"));
-    console.log("[feed] full first clip:", JSON.stringify(raw[0]));
-  }
+async function getClipsFeed(page = 1, limit = 20) {
+  const response = await apiClient.get(`/clips/feed?page=${page}&limit=${limit}`);
+  const raw = response.data?.data ?? (Array.isArray(response.data) ? response.data : response.data?.clips ?? []);
+  const meta = response.data?.meta ?? {};
+  const total =
+    typeof meta.total === "number"
+      ? meta.total
+      : typeof response.data?.total === "number"
+      ? response.data.total
+      : raw.length;
+  const totalPages =
+    typeof meta.totalPages === "number"
+      ? meta.totalPages
+      : Math.max(1, Math.ceil(total / limit));
 
   // First pass — map what the feed gives us
   const clips: any[] = raw.map((clip: any) => {
@@ -75,12 +72,7 @@ async function getAllClips() {
     };
   });
 
-  console.log("[feed] after first pass, clips missing address:",
-    clips.filter((c) => !c.creatorAddress).map((c) => c.id)
-  );
-
   // Second pass — fetch /clips/:id/info for every clip that still has no address.
-  // Run all requests in parallel (batched at 10) and collect updated versions.
   const missingIdx = clips
     .map((c, i) => (!c.creatorAddress ? i : -1))
     .filter((i) => i !== -1);
@@ -96,9 +88,7 @@ async function getAllClips() {
             const res = await apiClient.get(`/clips/${clip.id}/info`);
             const info = res.data;
             const owner = info?.owner;
-            console.log(`[feed] /clips/${clip.id}/info owner:`, JSON.stringify(owner));
             if (owner?.stellarAddress) {
-              // Replace with a new object so React detects the change
               clips[idx] = {
                 ...clip,
                 creatorAddress: owner.stellarAddress,
@@ -114,19 +104,36 @@ async function getAllClips() {
     }
   }
 
-  console.log("[feed] final clips with address:", clips.filter((c) => c.creatorAddress).length, "/", clips.length);
-
-  // Return a new array so React Query always sees a fresh reference
-  return [...clips];
+  return {
+    clips,
+    total,
+    page: typeof meta.page === "number" ? meta.page : page,
+    limit: typeof meta.limit === "number" ? meta.limit : limit,
+    totalPages,
+  };
 }
 
 function AIProjectsInner() {
-  const { data: clips = [], isLoading } = useQuery({
-    queryKey: ["aiProjects"],
-    queryFn: getAllClips,
-    staleTime: 0,          // always refetch — we need fresh /info data
-    refetchOnWindowFocus: true,
+  const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const pageParam = parseInt(searchParams.get("page") || "1", 10);
+  const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
+  const limit = 20;
+
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: ["aiProjects", page, limit],
+    queryFn: () => getClipsFeed(page, limit),
+    staleTime: 30_000,
+    refetchOnWindowFocus: false,
   });
+
+  const handlePageChange = (newPage: number) => {
+    router.push(`/ai-projects?page=${newPage}`);
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -139,7 +146,17 @@ function AIProjectsInner() {
     );
   }
 
-  return <AIProjectsContent clips={clips} />;
+  return (
+    <AIProjectsContent
+      clips={data?.clips || []}
+      total={data?.total ?? 0}
+      currentPage={data?.page ?? page}
+      totalPages={data?.totalPages ?? 1}
+      limit={limit}
+      isFetching={isFetching}
+      onPageChange={handlePageChange}
+    />
+  );
 }
 
 export default function AIProjectsPage() {
